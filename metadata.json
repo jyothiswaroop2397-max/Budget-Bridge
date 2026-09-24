@@ -1,0 +1,8 @@
+{
+  "name": "Budget Bridge",
+  "description": "An online social expense tracker and peer-to-peer ledger for splitting costs, tracking who owes whom, and monitoring daily budgets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

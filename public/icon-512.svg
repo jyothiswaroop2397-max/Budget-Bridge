@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bbBgGrad512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#0F766E" />
+      <stop offset="100%" stopColor="#10B981" />
+    </linearGradient>
+    <linearGradient id="bbCoinGrad512" x1="20%" y1="15%" x2="85%" y2="90%">
+      <stop offset="0%" stopColor="#FDE68A" />
+      <stop offset="40%" stopColor="#FBBF24" />
+      <stop offset="100%" stopColor="#D97706" />
+    </linearGradient>
+    <linearGradient id="bbBridgeGrad512" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stopColor="#34D399" />
+      <stop offset="50%" stopColor="#6EE7B7" />
+      <stop offset="100%" stopColor="#34D399" />
+    </linearGradient>
+    <linearGradient id="bbWaterGrad512" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stopColor="#0F766E" stop-opacity="0.6" />
+      <stop offset="100%" stopColor="#0F172A" stop-opacity="0.9" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bbBgGrad512)" />
+  <rect x="12" y="12" width="488" height="488" rx="100" fill="none" stroke="rgba(255, 255, 255, 0.22)" stroke-width="4" />
+  <path d="M 40 400 Q 256 392 472 400 L 472 430 Q 256 422 40 430 Z" fill="url(#bbWaterGrad512)" opacity="0.45" />
+  <path d="M 64 348 Q 256 322 448 348 L 448 368 Q 256 342 64 368 Z" fill="url(#bbBridgeGrad512)" />
+  <path d="M 88 424 L 88 360 Q 256 280 424 360 L 424 424 L 380 424 Q 256 320 132 424 Z" fill="url(#bbBridgeGrad512)" />
+  <line x1="172" y1="344" x2="172" y2="385" stroke="#A7F3D0" stroke-width="5" stroke-linecap="round" opacity="0.85" />
+  <line x1="214" y1="334" x2="214" y2="338" stroke="#A7F3D0" stroke-width="5" stroke-linecap="round" opacity="0.85" />
+  <line x1="298" y1="334" x2="298" y2="338" stroke="#A7F3D0" stroke-width="5" stroke-linecap="round" opacity="0.85" />
+  <line x1="340" y1="344" x2="340" y2="385" stroke="#A7F3D0" stroke-width="5" stroke-linecap="round" opacity="0.85" />
+  <path d="M 232 292 L 280 292 L 274 322 L 238 322 Z" fill="#6EE7B7" />
+  <circle cx="256" cy="204" r="68" fill="url(#bbCoinGrad512)" stroke="#F59E0B" stroke-width="4" />
+  <circle cx="256" cy="204" r="58" fill="none" stroke="rgba(255, 255, 255, 0.4)" stroke-width="2.5" stroke-dasharray="6 4" />
+  <g fill="#0F172A" stroke="#0F172A">
+    <rect x="228" y="166" width="56" height="7.5" rx="3.5" />
+    <rect x="228" y="184" width="52" height="7.5" rx="3.5" />
+    <path d="M 238 166 L 238 214 C 258 214 274 206 274 193 C 274 180 258 174 246 174" fill="none" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 246 210 L 278 244" stroke-width="8" stroke-linecap="round" />
+  </g>
+</svg>
