@@ -37,6 +37,7 @@ import { Category, PeerBalance, PeerBalanceType, Transaction, TransactionType } 
 import { formatCurrency, formatDate, CATEGORY_THEMES } from '../utils/formatters.js';
 import { useTheme } from '../context/ThemeContext.js';
 import { useToast } from '../hooks/useToast.js';
+import { FinancialHealthCompactCard } from './FinancialHealthCard.js';
 import {
   parseTransactionHeuristic,
   parsePeerBalanceHeuristic,
@@ -56,6 +57,7 @@ interface PageOverviewProps {
   peerBalances: PeerBalance[];
   totalOwedToYou: number;
   totalIOwe: number;
+  savingsEntries?: import('../types/savings.js').SavingsEntry[];
   onOpenAddPeerModal: (defaultType: PeerBalanceType) => void;
   onSettlePeerBalance: (id: string) => void;
   onOpenSettleModal?: (peer: PeerBalance) => void;
@@ -76,6 +78,9 @@ interface PageOverviewProps {
     type: PeerBalanceType;
     amount: number;
     note?: string;
+    direction?: 'GAVE' | 'RECEIVED';
+    dateStr?: string;
+    directPeer?: PeerBalance;
   }) => void;
   selectedDate?: Date;
   onResetToCurrentMonth?: () => void;
@@ -93,6 +98,7 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
   peerBalances,
   totalOwedToYou,
   totalIOwe,
+  savingsEntries = [],
   onOpenAddPeerModal,
   onSettlePeerBalance,
   onOpenSettleModal,
@@ -308,6 +314,7 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
               currency,
               totalOwedToYou,
               totalIOwe,
+              peerBalances,
             },
           }),
         });
@@ -340,6 +347,19 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
               category: data.transaction.category || 'Other',
             });
             const msg = `✓ Logged ${formatCurrency(data.transaction.amount, currency)} for ${data.transaction.merchant} (${data.transaction.category || 'Other'})`;
+            setQuickFeedback(msg);
+            showToast(msg, 'success');
+            setQuickInput('');
+            serverSuccess = true;
+            return;
+          } else if (data.peerLedger?.peer && onAddPeerBalance) {
+            onAddPeerBalance({
+              directPeer: data.peerLedger.peer,
+              name: data.peerLedger.peer.name,
+              type: data.peerLedger.peer.type,
+              amount: data.peerLedger.peer.amount,
+            });
+            const msg = data.reply || `✓ Updated ledger for ${data.peerLedger.peer.name}`;
             setQuickFeedback(msg);
             showToast(msg, 'success');
             setQuickInput('');
@@ -692,10 +712,23 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
         </div>
       </div>
 
-      {/* 2. PEER BALANCES SECTION: "Owe Me" (Top) & "I Owe" (Below) */}
+      {/* FINANCIAL HEALTH SCORE COMPACT WIDGET (Navigates to Full Card on Analytics) */}
+      <FinancialHealthCompactCard
+        data={{
+          transactions,
+          currency,
+          monthlyCap,
+          monthlyExpenditure,
+          peerBalances,
+          currentSavings: savingsEntries.reduce((sum, s) => sum + s.amount, 0),
+        }}
+        onClick={() => onNavigateToPage(1)}
+      />
+
+      {/* 2. PEER BALANCES SECTION: "Owe Me" & "I Owe" (Always beside each other in 2 columns) */}
       <div
         id="peer-balances-overview-section"
-        className="flex flex-col gap-3 sm:gap-4 shrink-0"
+        className="grid grid-cols-2 gap-2 sm:gap-4 shrink-0 items-stretch"
       >
         {/* CARD A: "Owe Me" (Pending Assets / Friends owe me) */}
         <div
@@ -704,16 +737,16 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
             backgroundColor: theme.isDark ? theme.bgCard : 'rgba(255, 255, 255, 0.85)',
             borderColor: theme.isDark ? `${theme.accentColor}40` : 'rgba(255, 255, 255, 0.9)',
           }}
-          className="rounded-[24px] border p-4 sm:p-5 flex flex-col justify-between space-y-2.5 sm:space-y-3 shadow-[0_10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl relative overflow-hidden"
+          className="rounded-[20px] sm:rounded-[24px] border p-2.5 sm:p-5 flex flex-col justify-between space-y-2 sm:space-y-3 shadow-[0_10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl relative overflow-hidden h-full min-w-0"
         >
           {/* Header row with + Add button */}
           <div className="flex items-center justify-between gap-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-700 shrink-0 shadow-xs">
-                <ArrowDownLeft className="w-4 h-4 stroke-[2.5]" />
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-700 shrink-0 shadow-xs">
+                <ArrowDownLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
               </div>
               <div className="min-w-0">
-                <h3 className={`text-xs sm:text-sm font-bold uppercase tracking-wider whitespace-nowrap ${theme.isDark ? 'text-white' : 'text-slate-800'}`}>
+                <h3 className={`text-[11px] sm:text-sm font-bold uppercase tracking-wider truncate ${theme.isDark ? 'text-white' : 'text-slate-800'}`}>
                   Owe Me
                 </h3>
               </div>
@@ -722,39 +755,39 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
             <button
               id="add-owed-to-you-btn"
               onClick={() => onOpenAddPeerModal('OWED_TO_YOU')}
-              className="px-2.5 py-1 rounded-full bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-emerald-800 text-[11px] font-bold flex items-center gap-1 transition-all shadow-xs active:scale-95 shrink-0 whitespace-nowrap"
+              className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-emerald-800 text-[10px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1 transition-all shadow-xs active:scale-95 shrink-0"
               title="Add money someone owes you"
             >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" />
               <span>Add</span>
             </button>
           </div>
 
           {/* Big Amount Counter */}
-          <div className="flex items-baseline justify-between pt-0.5">
-            <div className="min-w-0">
+          <div className="flex items-baseline justify-between pt-0.5 min-w-0">
+            <div className="min-w-0 flex-1">
               <div
                 id="total-owed-to-you-counter"
-                className="text-2xl sm:text-3xl font-extrabold font-display text-emerald-700 tracking-tight whitespace-nowrap"
+                className="text-base sm:text-2xl md:text-3xl font-extrabold font-display text-emerald-700 tracking-tight truncate"
               >
                 +{formatCurrency(totalOwedToYou, currency)}
               </div>
-              <span className={`text-[11px] sm:text-xs truncate block font-medium ${theme.isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <span className={`text-[10px] sm:text-xs truncate block font-medium ${theme.isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 {owedToYouList.length} friend{owedToYouList.length !== 1 ? 's' : ''} owe you
               </span>
             </div>
 
-            <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-[10px] font-bold text-emerald-800 shrink-0 shadow-xs">
+            <span className="hidden md:inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-[10px] font-bold text-emerald-800 shrink-0 shadow-xs">
               Pending Assets
             </span>
           </div>
 
           {/* Items List (Rounded Capsules with Inline Expanding Breakdown) */}
-          <div className="space-y-2 pt-0.5 flex-1 max-h-[220px] sm:max-h-[280px] overflow-y-auto no-scrollbar flex flex-col justify-start">
+          <div className="space-y-1.5 sm:space-y-2 pt-0.5 flex-1 max-h-[240px] sm:max-h-[280px] overflow-y-auto no-scrollbar flex flex-col justify-start">
             {owedToYouList.length === 0 ? (
               <div
                 style={{ backgroundColor: theme.isDark ? `${theme.bgCardInner}a0` : 'rgba(248, 250, 252, 0.7)' }}
-                className="flex-1 flex items-center justify-center p-3 rounded-2xl border border-slate-200/60 text-center text-xs text-slate-400"
+                className="flex-1 flex items-center justify-center p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200/60 text-center text-[11px] sm:text-xs text-slate-400"
               >
                 No pending receivables.
               </div>
@@ -775,80 +808,87 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
                         ? 'rgba(16, 185, 129, 0.6)'
                         : theme.isDark ? 'rgba(16, 185, 129, 0.25)' : 'rgba(167, 243, 208, 0.9)',
                     }}
-                    className={`rounded-2xl border ${
+                    className={`rounded-xl sm:rounded-2xl border ${
                       isExpanded ? 'shadow-md ring-1 ring-emerald-300/60 dark:ring-emerald-500/30' : 'shadow-xs'
                     } overflow-hidden transition-all`}
                   >
                     {/* Primary Friend Row */}
                     <div
                       onClick={() => togglePeerExpand(item.id)}
-                      className={`px-3 py-2 flex items-center justify-between gap-1.5 transition-all cursor-pointer select-none ${
+                      className={`p-2 sm:px-3 sm:py-2 flex flex-col min-[520px]:flex-row min-[520px]:items-center justify-between gap-1 min-[520px]:gap-1.5 transition-all cursor-pointer select-none ${
                         isExpanded
                           ? theme.isDark ? 'bg-emerald-950/40' : 'bg-emerald-50/80'
                           : theme.isDark ? 'hover:bg-slate-800/70' : 'hover:bg-emerald-50/50'
                       }`}
                       title="Click to toggle reasons & breakdown"
                     >
-                      <div className="min-w-0 flex-1 flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-300/80 flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs">
-                          {item.name.charAt(0).toUpperCase()}
+                      {/* Name & Avatar + Amount (on mobile) */}
+                      <div className="min-w-0 flex-1 flex items-center justify-between min-[520px]:justify-start gap-1.5 sm:gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-300/80 flex items-center justify-center text-[9px] sm:text-[10px] font-bold shrink-0 shadow-2xs">
+                            {item.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className={`text-[11px] sm:text-sm font-bold truncate block ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>{item.name}</span>
                         </div>
-                        <div className="min-w-0">
-                          <span className={`text-xs sm:text-sm font-bold truncate block ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>{item.name}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-xs sm:text-sm font-bold font-display text-emerald-700 dark:text-emerald-400">
+                        <span className="min-[520px]:hidden text-[11px] font-bold font-display text-emerald-700 dark:text-emerald-400 shrink-0">
                           +{formatCurrency(item.amount, currency)}
                         </span>
-                        <div className="text-slate-400 p-0.5">
-                          {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </div>
+
+                      {/* Desktop Amount + Settle and Chevron */}
+                      <div className="flex items-center justify-between min-[520px]:justify-end gap-1 sm:gap-1.5 shrink-0 pt-1 min-[520px]:pt-0 border-t min-[520px]:border-t-0 border-emerald-100/60 dark:border-slate-800">
+                        <span className="hidden min-[520px]:inline text-xs sm:text-sm font-bold font-display text-emerald-700 dark:text-emerald-400">
+                          +{formatCurrency(item.amount, currency)}
+                        </span>
+                        <div className="flex items-center gap-1 ml-auto">
+                          <div className="text-slate-400 p-0.5">
+                            {isExpanded ? <ChevronUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-600 dark:text-emerald-400" /> : <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+                          </div>
+                          <button
+                            id={`settle-peer-${item.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onOpenSettleModal) {
+                                onOpenSettleModal(item);
+                              } else {
+                                onSettlePeerBalance(item.id);
+                              }
+                            }}
+                            className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/90 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 transition-colors shadow-xs text-[10px] sm:text-[11px] font-bold"
+                            title={`Settle ${item.name}'s balance`}
+                            aria-label="Settle balance"
+                          >
+                            Settle
+                          </button>
                         </div>
-                        <button
-                          id={`settle-peer-${item.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onOpenSettleModal) {
-                              onOpenSettleModal(item);
-                            } else {
-                              onSettlePeerBalance(item.id);
-                            }
-                          }}
-                          className="px-2.5 py-1 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/90 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 transition-colors shadow-xs text-[11px] font-bold"
-                          title={`Settle ${item.name}'s balance`}
-                          aria-label="Settle balance"
-                        >
-                          Settle
-                        </button>
                       </div>
                     </div>
 
                     {/* Inline Reasons Breakdown (when clicked) */}
                     {isExpanded && (
-                      <div className={`px-3 py-2.5 border-t border-emerald-100 dark:border-slate-800 ${
+                      <div className={`p-2 sm:px-3 sm:py-2.5 border-t border-emerald-100 dark:border-slate-800 ${
                         theme.isDark ? 'bg-slate-900/40' : 'bg-emerald-50/40'
                       } space-y-1.5 animate-in fade-in duration-150`}>
-                        <div className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider flex items-center justify-between">
-                          <span>Reasons & Breakdown:</span>
+                        <div className="text-[9px] sm:text-[10px] font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider flex items-center justify-between">
+                          <span>Breakdown:</span>
                           <span>{itemsList.length} item{itemsList.length !== 1 ? 's' : ''}</span>
                         </div>
 
                         {itemsList.map((reason, rIdx) => (
                           <div
                             key={reason.id || rIdx}
-                            className={`flex items-center justify-between text-xs py-1.5 px-2 rounded-xl ${
+                            className={`flex items-center justify-between text-xs py-1 px-1.5 sm:py-1.5 sm:px-2 rounded-lg sm:rounded-xl ${
                               theme.isDark ? 'bg-slate-800/90 border-slate-700/60' : 'bg-white border-emerald-200/80 shadow-2xs'
-                            } border gap-1.5`}
+                            } border gap-1`}
                           >
-                            <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="flex items-center gap-1 min-w-0">
                               {getReasonIcon(reason.description)}
-                              <span className={`truncate font-medium text-[11px] ${theme.isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                              <span className={`truncate font-medium text-[10px] sm:text-[11px] ${theme.isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                                 {reason.description}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                              <span className="font-bold font-display text-[11px] text-emerald-700 dark:text-emerald-400">
+                              <span className="font-bold font-display text-[10px] sm:text-[11px] text-emerald-700 dark:text-emerald-400">
                                 {formatCurrency(reason.amount, currency)}
                               </span>
                               {onRemoveItemFromPeer && (
@@ -861,7 +901,7 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
                                   className="text-slate-400 hover:text-rose-500 p-0.5 transition-colors"
                                   title="Remove this reason"
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                 </button>
                               )}
                             </div>
@@ -873,37 +913,39 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
                           <form
                             onSubmit={(e) => handleAddInlineReason(e, item.id)}
                             onClick={(e) => e.stopPropagation()}
-                            className="flex items-center gap-1.5 pt-1"
+                            className="flex flex-col min-[480px]:flex-row items-stretch min-[480px]:items-center gap-1 pt-1"
                           >
                             <input
                               type="text"
-                              placeholder="Add reason (e.g. Pani Puri)"
+                              placeholder="Reason"
                               value={newReasonDesc}
                               onChange={(e) => setNewReasonDesc(e.target.value)}
-                              className={`flex-1 px-2.5 py-1.5 text-[11px] rounded-xl border ${
+                              className={`flex-1 min-w-0 px-2 py-1 text-[10px] sm:text-[11px] rounded-lg sm:rounded-xl border ${
                                 theme.isDark
                                   ? 'border-slate-700 bg-slate-800 text-white placeholder-slate-400 focus:border-emerald-400'
                                   : 'border-emerald-200 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-300'
                               } focus:outline-none`}
                             />
-                            <input
-                              type="number"
-                              placeholder="Amt"
-                              value={newReasonAmount}
-                              onChange={(e) => setNewReasonAmount(e.target.value)}
-                              className={`w-16 px-2 py-1.5 text-[11px] font-bold rounded-xl border ${
-                                theme.isDark
-                                  ? 'border-slate-700 bg-slate-800 text-white placeholder-slate-400 focus:border-emerald-400'
-                                  : 'border-emerald-200 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-300'
-                              } focus:outline-none`}
-                            />
-                            <button
-                              type="submit"
-                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-0.5 shrink-0 shadow-xs active:scale-95 transition-transform"
-                            >
-                              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                              <span>Add</span>
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                placeholder="Amt"
+                                value={newReasonAmount}
+                                onChange={(e) => setNewReasonAmount(e.target.value)}
+                                className={`w-14 sm:w-16 px-1.5 py-1 text-[10px] sm:text-[11px] font-bold rounded-lg sm:rounded-xl border ${
+                                  theme.isDark
+                                    ? 'border-slate-700 bg-slate-800 text-white placeholder-slate-400 focus:border-emerald-400'
+                                    : 'border-emerald-200 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-300'
+                                } focus:outline-none`}
+                              />
+                              <button
+                                type="submit"
+                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-[11px] font-bold flex items-center gap-0.5 shrink-0 shadow-xs active:scale-95 transition-transform"
+                              >
+                                <Plus className="w-3 h-3 stroke-[2.5]" />
+                                <span>Add</span>
+                              </button>
+                            </div>
                           </form>
                         )}
                       </div>
@@ -922,16 +964,16 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
             backgroundColor: theme.isDark ? theme.bgCard : 'rgba(255, 255, 255, 0.85)',
             borderColor: theme.isDark ? 'rgba(244, 63, 94, 0.3)' : 'rgba(255, 255, 255, 0.9)',
           }}
-          className="rounded-[24px] border p-4 sm:p-5 flex flex-col justify-between space-y-2.5 sm:space-y-3 shadow-[0_10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl relative overflow-hidden"
+          className="rounded-[20px] sm:rounded-[24px] border p-2.5 sm:p-5 flex flex-col justify-between space-y-2 sm:space-y-3 shadow-[0_10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl relative overflow-hidden h-full min-w-0"
         >
           {/* Header row with + Add button */}
           <div className="flex items-center justify-between gap-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-xl bg-pink-100 border border-pink-300 flex items-center justify-center text-pink-700 shrink-0 shadow-xs">
-                <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl bg-pink-100 border border-pink-300 flex items-center justify-center text-pink-700 shrink-0 shadow-xs">
+                <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
               </div>
               <div className="min-w-0">
-                <h3 className={`text-xs sm:text-sm font-bold uppercase tracking-wider whitespace-nowrap ${theme.isDark ? 'text-white' : 'text-slate-800'}`}>
+                <h3 className={`text-[11px] sm:text-sm font-bold uppercase tracking-wider truncate ${theme.isDark ? 'text-white' : 'text-slate-800'}`}>
                   I Owe
                 </h3>
               </div>
@@ -940,39 +982,39 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
             <button
               id="add-i-owe-btn"
               onClick={() => onOpenAddPeerModal('I_OWE')}
-              className="px-2.5 py-1 rounded-full bg-pink-100 hover:bg-pink-200 border border-pink-300 text-pink-800 text-[11px] font-bold flex items-center gap-1 transition-all shadow-xs active:scale-95 shrink-0 whitespace-nowrap"
+              className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-pink-100 hover:bg-pink-200 border border-pink-300 text-pink-800 text-[10px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1 transition-all shadow-xs active:scale-95 shrink-0"
               title="Add money you owe someone"
             >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" />
               <span>Add</span>
             </button>
           </div>
 
           {/* Big Amount Counter */}
-          <div className="flex items-baseline justify-between pt-0.5">
-            <div className="min-w-0">
+          <div className="flex items-baseline justify-between pt-0.5 min-w-0">
+            <div className="min-w-0 flex-1">
               <div
                 id="total-i-owe-counter"
-                className="text-2xl sm:text-3xl font-extrabold font-display text-rose-600 tracking-tight whitespace-nowrap"
+                className="text-base sm:text-2xl md:text-3xl font-extrabold font-display text-rose-600 tracking-tight truncate"
               >
                 -{formatCurrency(totalIOwe, currency)}
               </div>
-              <span className={`text-[11px] sm:text-xs truncate block font-medium ${theme.isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <span className={`text-[10px] sm:text-xs truncate block font-medium ${theme.isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 You owe {iOweList.length} friend{iOweList.length !== 1 ? 's' : ''}
               </span>
             </div>
 
-            <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-pink-100 border border-pink-300 text-[10px] font-bold text-pink-800 shrink-0 shadow-xs">
+            <span className="hidden md:inline-block px-2.5 py-0.5 rounded-full bg-pink-100 border border-pink-300 text-[10px] font-bold text-pink-800 shrink-0 shadow-xs">
               Pending Liabilities
             </span>
           </div>
 
           {/* Items List (Rounded Capsules with Inline Expanding Breakdown) */}
-          <div className="space-y-2 pt-0.5 flex-1 max-h-[220px] sm:max-h-[280px] overflow-y-auto no-scrollbar flex flex-col justify-start">
+          <div className="space-y-1.5 sm:space-y-2 pt-0.5 flex-1 max-h-[240px] sm:max-h-[280px] overflow-y-auto no-scrollbar flex flex-col justify-start">
             {iOweList.length === 0 ? (
               <div
                 style={{ backgroundColor: theme.isDark ? `${theme.bgCardInner}a0` : 'rgba(248, 250, 252, 0.7)' }}
-                className="flex-1 flex items-center justify-center p-3 rounded-2xl border border-slate-200/60 text-center text-xs text-slate-400"
+                className="flex-1 flex items-center justify-center p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200/60 text-center text-[11px] sm:text-xs text-slate-400"
               >
                 No debts pending.
               </div>
@@ -993,80 +1035,87 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
                         ? 'rgba(244, 63, 94, 0.6)'
                         : theme.isDark ? 'rgba(244, 63, 94, 0.25)' : 'rgba(254, 205, 211, 0.9)',
                     }}
-                    className={`rounded-2xl border ${
+                    className={`rounded-xl sm:rounded-2xl border ${
                       isExpanded ? 'shadow-md ring-1 ring-rose-300/60 dark:ring-rose-500/30' : 'shadow-xs'
                     } overflow-hidden transition-all`}
                   >
                     {/* Primary Friend Row */}
                     <div
                       onClick={() => togglePeerExpand(item.id)}
-                      className={`px-3 py-2 flex items-center justify-between gap-1.5 transition-all cursor-pointer select-none ${
+                      className={`p-2 sm:px-3 sm:py-2 flex flex-col min-[520px]:flex-row min-[520px]:items-center justify-between gap-1 min-[520px]:gap-1.5 transition-all cursor-pointer select-none ${
                         isExpanded
                           ? theme.isDark ? 'bg-rose-950/40' : 'bg-pink-50/80'
                           : theme.isDark ? 'hover:bg-slate-800/70' : 'hover:bg-pink-50/50'
                       }`}
                       title="Click to toggle reasons & breakdown"
                     >
-                      <div className="min-w-0 flex-1 flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-pink-100 dark:bg-pink-950/70 text-pink-800 dark:text-pink-300 border border-pink-300/80 flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs">
-                          {item.name.charAt(0).toUpperCase()}
+                      {/* Name & Avatar + Amount (on mobile) */}
+                      <div className="min-w-0 flex-1 flex items-center justify-between min-[520px]:justify-start gap-1.5 sm:gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-pink-100 dark:bg-pink-950/70 text-pink-800 dark:text-pink-300 border border-pink-300/80 flex items-center justify-center text-[9px] sm:text-[10px] font-bold shrink-0 shadow-2xs">
+                            {item.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className={`text-[11px] sm:text-sm font-bold truncate block ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>{item.name}</span>
                         </div>
-                        <div className="min-w-0">
-                          <span className={`text-xs sm:text-sm font-bold truncate block ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>{item.name}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-xs sm:text-sm font-bold font-display text-rose-600 dark:text-rose-400">
+                        <span className="min-[520px]:hidden text-[11px] font-bold font-display text-rose-600 dark:text-rose-400 shrink-0">
                           -{formatCurrency(item.amount, currency)}
                         </span>
-                        <div className="text-slate-400 p-0.5">
-                          {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </div>
+
+                      {/* Desktop Amount + Settle and Chevron */}
+                      <div className="flex items-center justify-between min-[520px]:justify-end gap-1 sm:gap-1.5 shrink-0 pt-1 min-[520px]:pt-0 border-t min-[520px]:border-t-0 border-pink-100/60 dark:border-slate-800">
+                        <span className="hidden min-[520px]:inline text-xs sm:text-sm font-bold font-display text-rose-600 dark:text-rose-400">
+                          -{formatCurrency(item.amount, currency)}
+                        </span>
+                        <div className="flex items-center gap-1 ml-auto">
+                          <div className="text-slate-400 p-0.5">
+                            {isExpanded ? <ChevronUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-rose-600 dark:text-rose-400" /> : <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+                          </div>
+                          <button
+                            id={`settle-peer-${item.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onOpenSettleModal) {
+                                onOpenSettleModal(item);
+                              } else {
+                                onSettlePeerBalance(item.id);
+                              }
+                            }}
+                            className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl bg-pink-100 hover:bg-pink-200 text-pink-800 dark:bg-pink-950/70 dark:hover:bg-pink-900/90 dark:text-pink-300 border border-pink-300 dark:border-pink-700/60 transition-colors shadow-xs text-[10px] sm:text-[11px] font-bold"
+                            title={`Settle debt to ${item.name}`}
+                            aria-label="Settle debt"
+                          >
+                            Settle
+                          </button>
                         </div>
-                        <button
-                          id={`settle-peer-${item.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onOpenSettleModal) {
-                              onOpenSettleModal(item);
-                            } else {
-                              onSettlePeerBalance(item.id);
-                            }
-                          }}
-                          className="px-2.5 py-1 rounded-xl bg-pink-100 hover:bg-pink-200 text-pink-800 dark:bg-pink-950/70 dark:hover:bg-pink-900/90 dark:text-pink-300 border border-pink-300 dark:border-pink-700/60 transition-colors shadow-xs text-[11px] font-bold"
-                          title={`Settle debt to ${item.name}`}
-                          aria-label="Settle debt"
-                        >
-                          Settle
-                        </button>
                       </div>
                     </div>
 
                     {/* Inline Reasons Breakdown (when clicked) */}
                     {isExpanded && (
-                      <div className={`px-3 py-2.5 border-t border-pink-100 dark:border-slate-800 ${
+                      <div className={`p-2 sm:px-3 sm:py-2.5 border-t border-pink-100 dark:border-slate-800 ${
                         theme.isDark ? 'bg-slate-900/40' : 'bg-pink-50/40'
                       } space-y-1.5 animate-in fade-in duration-150`}>
-                        <div className="text-[10px] font-bold text-pink-800 dark:text-pink-400 uppercase tracking-wider flex items-center justify-between">
-                          <span>Reasons & Breakdown:</span>
+                        <div className="text-[9px] sm:text-[10px] font-bold text-pink-800 dark:text-pink-400 uppercase tracking-wider flex items-center justify-between">
+                          <span>Breakdown:</span>
                           <span>{itemsList.length} item{itemsList.length !== 1 ? 's' : ''}</span>
                         </div>
 
                         {itemsList.map((reason, rIdx) => (
                           <div
                             key={reason.id || rIdx}
-                            className={`flex items-center justify-between text-xs py-1.5 px-2 rounded-xl ${
+                            className={`flex items-center justify-between text-xs py-1 px-1.5 sm:py-1.5 sm:px-2 rounded-lg sm:rounded-xl ${
                               theme.isDark ? 'bg-slate-800/90 border-slate-700/60' : 'bg-white border-pink-200/80 shadow-2xs'
-                            } border gap-1.5`}
+                            } border gap-1`}
                           >
-                            <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="flex items-center gap-1 min-w-0">
                               {getReasonIcon(reason.description)}
-                              <span className={`truncate font-medium text-[11px] ${theme.isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                              <span className={`truncate font-medium text-[10px] sm:text-[11px] ${theme.isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                                 {reason.description}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                              <span className="font-bold font-display text-[11px] text-rose-600 dark:text-rose-400">
+                              <span className="font-bold font-display text-[10px] sm:text-[11px] text-rose-600 dark:text-rose-400">
                                 {formatCurrency(reason.amount, currency)}
                               </span>
                               {onRemoveItemFromPeer && (
@@ -1079,7 +1128,7 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
                                   className="text-slate-400 hover:text-rose-500 p-0.5 transition-colors"
                                   title="Remove this reason"
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                 </button>
                               )}
                             </div>
@@ -1091,37 +1140,39 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
                           <form
                             onSubmit={(e) => handleAddInlineReason(e, item.id)}
                             onClick={(e) => e.stopPropagation()}
-                            className="flex items-center gap-1.5 pt-1"
+                            className="flex flex-col min-[480px]:flex-row items-stretch min-[480px]:items-center gap-1 pt-1"
                           >
                             <input
                               type="text"
-                              placeholder="Add reason (e.g. Cab fare)"
+                              placeholder="Reason"
                               value={newReasonDesc}
                               onChange={(e) => setNewReasonDesc(e.target.value)}
-                              className={`flex-1 px-2.5 py-1.5 text-[11px] rounded-xl border ${
+                              className={`flex-1 min-w-0 px-2 py-1 text-[10px] sm:text-[11px] rounded-lg sm:rounded-xl border ${
                                 theme.isDark
                                   ? 'border-slate-700 bg-slate-800 text-white placeholder-slate-400 focus:border-pink-400'
                                   : 'border-pink-200 bg-white text-slate-900 placeholder-slate-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-300'
                               } focus:outline-none`}
                             />
-                            <input
-                              type="number"
-                              placeholder="Amt"
-                              value={newReasonAmount}
-                              onChange={(e) => setNewReasonAmount(e.target.value)}
-                              className={`w-16 px-2 py-1.5 text-[11px] font-bold rounded-xl border ${
-                                theme.isDark
-                                  ? 'border-slate-700 bg-slate-800 text-white placeholder-slate-400 focus:border-pink-400'
-                                  : 'border-pink-200 bg-white text-slate-900 placeholder-slate-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-300'
-                              } focus:outline-none`}
-                            />
-                            <button
-                              type="submit"
-                              className="px-2.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[11px] font-bold flex items-center gap-0.5 shrink-0 shadow-xs active:scale-95 transition-transform"
-                            >
-                              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                              <span>Add</span>
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                placeholder="Amt"
+                                value={newReasonAmount}
+                                onChange={(e) => setNewReasonAmount(e.target.value)}
+                                className={`w-14 sm:w-16 px-1.5 py-1 text-[10px] sm:text-[11px] font-bold rounded-lg sm:rounded-xl border ${
+                                  theme.isDark
+                                    ? 'border-slate-700 bg-slate-800 text-white placeholder-slate-400 focus:border-pink-400'
+                                    : 'border-pink-200 bg-white text-slate-900 placeholder-slate-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-300'
+                                } focus:outline-none`}
+                              />
+                              <button
+                                type="submit"
+                                className="px-2 py-1 bg-rose-500 hover:bg-rose-600 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-[11px] font-bold flex items-center gap-0.5 shrink-0 shadow-xs active:scale-95 transition-transform"
+                              >
+                                <Plus className="w-3 h-3 stroke-[2.5]" />
+                                <span>Add</span>
+                              </button>
+                            </div>
                           </form>
                         )}
                       </div>

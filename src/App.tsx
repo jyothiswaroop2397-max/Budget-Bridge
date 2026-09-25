@@ -4,6 +4,7 @@ import { BottomNavBar } from './components/BottomNavBar.js';
 import { PageOverview } from './components/PageOverview.js';
 import { PageAnalytics } from './components/PageAnalytics.js';
 import { PageSettings } from './components/PageSettings.js';
+import { PageSavings } from './components/PageSavings.js';
 import { ManualAddModal } from './components/ManualAddModal.js';
 import { AddPeerBalanceModal } from './components/AddPeerBalanceModal.js';
 import { SettleUpModal } from './components/SettleUpModal.js';
@@ -65,6 +66,33 @@ export const App: React.FC = () => {
     handleToggleSmsPermission,
     handleResetData,
   } = useBudgetSettings(setState);
+
+  // 6. Savings Entries Handlers
+  const handleAddSavingsEntry = (entry: Omit<import('./types/savings.js').SavingsEntry, 'id' | 'createdAt'>) => {
+    const newEntry: import('./types/savings.js').SavingsEntry = {
+      ...entry,
+      id: `sav-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      createdAt: Date.now(),
+    };
+    setState((prev) => ({
+      ...prev,
+      savingsEntries: [newEntry, ...(prev.savingsEntries || [])],
+    }));
+  };
+
+  const handleUpdateSavingsEntry = (id: string, updates: Partial<import('./types/savings.js').SavingsEntry>) => {
+    setState((prev) => ({
+      ...prev,
+      savingsEntries: (prev.savingsEntries || []).map((s) => (s.id === id ? { ...s, ...updates } : s)),
+    }));
+  };
+
+  const handleDeleteSavingsEntry = (id: string) => {
+    setState((prev) => ({
+      ...prev,
+      savingsEntries: (prev.savingsEntries || []).filter((s) => s.id !== id),
+    }));
+  };
 
   // Selected month and year for calendar navigation & history browsing
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
@@ -273,6 +301,7 @@ export const App: React.FC = () => {
             peerBalances={state.peerBalances}
             totalOwedToYou={totalOwedToYou}
             totalIOwe={totalIOwe}
+            savingsEntries={state.savingsEntries}
             onOpenAddPeerModal={handleOpenAddPeerModal}
             onSettlePeerBalance={handleSettlePeerBalance}
             onOpenSettleModal={handleOpenSettleModal}
@@ -299,6 +328,10 @@ export const App: React.FC = () => {
           <PageAnalytics
             transactions={state.transactions}
             currency={state.currency}
+            monthlyCap={state.monthlyCap}
+            monthlyExpenditure={monthlyExpenditure}
+            peerBalances={state.peerBalances}
+            savingsEntries={state.savingsEntries}
             selectedCategory={selectedAnalyticsCategory}
             onSelectCategory={setSelectedAnalyticsCategory}
             onDeleteTransaction={handleDeleteTransaction}
@@ -323,6 +356,19 @@ export const App: React.FC = () => {
             onToggleSmsPermission={handleToggleSmsPermission}
             onSimulateIncomingSms={handleSilentSmsVerification}
             onResetData={handleResetData}
+            onNavigateToPage={handleNavigatePage}
+            onGoBack={handleGoBack}
+          />
+        )}
+
+        {/* PAGE 4: SAVINGS & ASSETS TRACKER */}
+        {currentPage === 3 && (
+          <PageSavings
+            savingsEntries={state.savingsEntries || []}
+            currency={state.currency}
+            onAddSavingsEntry={handleAddSavingsEntry}
+            onUpdateSavingsEntry={handleUpdateSavingsEntry}
+            onDeleteSavingsEntry={handleDeleteSavingsEntry}
             onNavigateToPage={handleNavigatePage}
             onGoBack={handleGoBack}
           />

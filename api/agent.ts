@@ -8,11 +8,18 @@ import {
   classifyMessageIntent,
   GREETING_KEYWORDS,
   getRandomIntentReply,
-  parsePeerBalanceHeuristic,
   parseTransactionHeuristic,
 } from '../src/utils/parser.js';
+import {
+  parsePeerTransaction,
+  parsePeerLedgerQuery,
+  formatPeerLedgerProfile,
+  calculatePeerLedgerTotals,
+  applyPeerTransaction,
+  getTodayIsoDate,
+} from '../src/utils/peerLedger.js';
 import { analyzeFinancialQueryLocal } from '../src/utils/financialQueryHelper.js';
-import { BudgetContext, ChatProposal } from '../src/types.js';
+import { BudgetContext, ChatProposal, PeerBalance } from '../src/types.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -74,8 +81,105 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : [],
   };
 
+  const currentPeers: PeerBalance[] = Array.isArray(safeContext.peerBalances)
+    ? (safeContext.peerBalances as PeerBalance[])
+    : [];
+
   // ═════════════════════════════════════════════════════════════════
-  // LAYER 1: STRICT INTENT CLASSIFICATION BEFORE ANY ACTION
+  // LAYER 0: PEER LEDGER PROFILE / HISTORY QUERY
+  // (e.g. "show Rahul", "what does Rahul owe", "Rahul's history", "Rahul ledger")
+  // MUST respond ONLY in the exact specified profile format.
+  // ═════════════════════════════════════════════════════════════════
+  const ledgerQuery = parsePeerLedgerQuery(promptText);
+  if (ledgerQuery) {
+    const targetPeer = currentPeers.find(
+      (p) => p.name.trim().toLowerCase() === ledgerQuery.personName.toLowerCase()
+    ) || null;
+
+    const profileReply = formatPeerLedgerProfile(ledgerQuery.personName, targetPeer);
+    return res.status(200).json({
+      success: true,
+      mode: 'TEXT_QUERY',
+      intentCategory: 'BUDGET_QUERY',
+      reply: profileReply,
+      engine: 'peer_ledger',
+      note: 'Peer ledger profile query answered in exact format',
+    });
+  }
+
+  // ═════════════════════════════════════════════════════════════════
+  // LAYER 1: PEER TRANSACTION OR AMBIGUITY CHECK
+  // (e.g. "I gave Rahul 2000", "Rahul paid me back 1000", "I lent Priya 500 for lunch")
+  // ═════════════════════════════════════════════════════════════════
+  const peerTxResult = parsePeerTransaction(promptText);
+  if (peerTxResult) {
+    if (peerTxResult.type === 'QUERY') {
+      const targetPeer = currentPeers.find(
+        (p) => p.name.trim().toLowerCase() === peerTxResult.personName.toLowerCase()
+      ) || null;
+      const profileReply = formatPeerLedgerProfile(peerTxResult.personName, targetPeer);
+      return res.status(200).json({
+        success: true,
+        mode: 'TEXT_QUERY',
+        intentCategory: 'BUDGET_QUERY',
+        reply: profileReply,
+        engine: 'peer_ledger',
+      });
+    }
+
+    if (peerTxResult.type === 'AMBIGUOUS') {
+      return res.status(200).json({
+        success: true,
+        mode: 'TEXT_QUERY',
+        intentCategory: 'GENERAL_CHAT',
+        reply: peerTxResult.clarificationQuestion,
+        engine: 'peer_ledger',
+        note: 'Ambiguous peer transaction, clarifying with user',
+      });
+    }
+
+    if (peerTxResult.type === 'TRANSACTION') {
+      // Apply transaction into running ledger
+      const { updatedPeer } = applyPeerTransaction(currentPeers, peerTxResult);
+      const { totalGiven, totalReceived, pending } = calculatePeerLedgerTotals(updatedPeer);
+
+      const pendingStr =
+        pending < 0
+          ? `-₹${Math.abs(pending)} (you owe ${updatedPeer.name})`
+          : `₹${pending}`;
+
+      const replyMsg =
+        peerTxResult.direction === 'GAVE'
+          ? `Recorded: You gave ₹${peerTxResult.amount} to ${updatedPeer.name}${
+              peerTxResult.description ? ` for ${peerTxResult.description}` : ''
+            } on ${peerTxResult.dateStr}. (Pending: ${pendingStr})`
+          : `Recorded: Received ₹${peerTxResult.amount} back from ${updatedPeer.name}${
+              peerTxResult.description ? ` for ${peerTxResult.description}` : ''
+            } on ${peerTxResult.dateStr}. (Pending: ${pendingStr})`;
+
+      return res.status(200).json({
+        success: true,
+        mode: 'PEER_BALANCE',
+        intentCategory: 'DEBT_STATEMENT',
+        reply: replyMsg,
+        peerLedger: {
+          action: 'LOGGED',
+          peer: updatedPeer,
+        },
+        peerBalance: {
+          name: updatedPeer.name,
+          type: updatedPeer.type,
+          amount: updatedPeer.amount,
+          note: peerTxResult.description,
+        },
+        engine: 'peer_ledger',
+        note: 'Peer transaction logged to running ledger',
+      });
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════
+  // LAYER 2: GENERAL INTENT CLASSIFICATION BEFORE REGULAR ACTION
   // ═════════════════════════════════════════════════════════════════
   const intentResult = classifyMessageIntent(promptText);
 
@@ -117,7 +221,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // If no specific rule triggered, try Gemini with budget context
+    // If no specific rule triggered, try Gemini with budget and peer ledger context
     const ai = getGeminiClient();
     if (ai) {
       try {
@@ -128,9 +232,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               role: 'user',
               parts: [
                 {
-                  text: `You are the Budget Bridge Assistant. You are addressing user "${displayName}".
-Always start your reply with "Hi ${displayName}, " followed by the helpful answer.
-User's financial data:
+                  text: `You are the personal finance assistant for Budget Bridge. You track expenses and manage peer lending/borrowing ledgers.
+Addressing user: "${displayName}".
+Current peer balances and ledgers: ${JSON.stringify(currentPeers)}
+User's budget data:
 - Currency: ${safeContext.currency}
 - Monthly Expenditure: ${safeContext.monthlyExpenditure}
 - Monthly Cap: ${safeContext.monthlyCap}
@@ -141,13 +246,28 @@ User's financial data:
 - Category Breakdown: ${JSON.stringify(safeContext.categoryBreakdown)}
 - Recent Transactions: ${JSON.stringify(safeContext.recentTransactions?.slice(0, 5) || [])}
 
-Answer the user's financial question clearly, concisely, and accurately in 1-3 sentences: "${promptText}"`,
+BEHAVIOR RULES FOR PEER LEDGERS:
+- If asking to see a person's ledger (e.g. "show Rahul", "what does Rahul owe", "Rahul's history"), respond ONLY in this exact format:
+[Name]
+You gave: ₹[total given]
+Received back: ₹[total received back]
+Pending: ₹[pending amount]  (or "Pending: -₹[amount] (you owe [Name])" if negative)
+
+Transaction History:
+[date] — ₹[amount] — [Gave/Received] — [description if provided]
+... (chronological order, oldest first)
+
+- If no transactions exist for a person, say "No transactions found for [Name]. Would you like to log one?"
+- If ambiguous, ask clarifying question (e.g. "Who was this with?").
+- Otherwise answer the user's financial question clearly and concisely.
+
+User query: "${promptText}"`,
                 },
               ],
             },
           ],
           config: {
-            temperature: 0.2,
+            temperature: 0.1,
           },
         });
         const geminiReply = response.text?.trim();
@@ -184,41 +304,57 @@ Answer the user's financial question clearly, concisely, and accurately in 1-3 s
     });
   }
 
-  // Case (b): Debt Statement (e.g. "Rahul owes me 500", "I owe Priya 300")
-  // LAYER 2: Do NOT log immediately! Create a proposal requiring user confirmation.
+  // Case (b): Legacy Debt Statement ("Rahul owes me 500" / "I owe Priya 300")
   if (intentResult.category === 'DEBT_STATEMENT') {
-    const peerMatch = parsePeerBalanceHeuristic(promptText);
-    if (peerMatch && peerMatch.amount > 0) {
-      const isOwedToYou = peerMatch.type === 'OWED_TO_YOU';
-      const proposalId = 'prop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-      const proposal: ChatProposal = {
-        id: proposalId,
-        type: 'PEER_DEBT',
-        status: 'PENDING',
-        data: {
-          name: peerMatch.name,
-          type: peerMatch.type,
-          amount: peerMatch.amount,
-          note: peerMatch.note,
-        },
-        summaryText: isOwedToYou
-          ? `${peerMatch.name} owes you ${safeContext.currency} ${peerMatch.amount.toLocaleString()}`
-          : `You owe ${peerMatch.name} ${safeContext.currency} ${peerMatch.amount.toLocaleString()}`,
-        isAmbiguous: false,
-      };
+    // If it reaches here, check if it's "X owes me Y" / "I owe X Y"
+    const owesMe = promptText.match(/([a-zA-Z]+)\s+owes\s+me\s+(?:[₹$€£]|rs\.?|inr)?\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)(?:\s+(?:for|on)\s+(.+))?/i);
+    const iOwe = promptText.match(/i\s+owe\s+([a-zA-Z]+)\s+(?:[₹$€£]|rs\.?|inr)?\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)(?:\s+(?:for|on)\s+(.+))?/i);
 
-      const confirmationPrompt = isOwedToYou
-        ? `Log that ${peerMatch.name} owes you ${safeContext.currency} ${peerMatch.amount.toLocaleString()}${peerMatch.note ? ` (${peerMatch.note})` : ''}?`
-        : `Log that you owe ${peerMatch.name} ${safeContext.currency} ${peerMatch.amount.toLocaleString()}${peerMatch.note ? ` (${peerMatch.note})` : ''}?`;
-
+    if (owesMe) {
+      const pName = owesMe[1];
+      const pAmt = parseFloat(owesMe[2].replace(/,/g, ''));
+      const pDesc = owesMe[3]?.trim() || '';
+      const { updatedPeer } = applyPeerTransaction(currentPeers, {
+        type: 'TRANSACTION',
+        personName: pName,
+        direction: 'GAVE',
+        amount: pAmt,
+        dateStr: getTodayIsoDate(),
+        description: pDesc,
+      });
+      const { pending } = calculatePeerLedgerTotals(updatedPeer);
+      const pendingStr = pending < 0 ? `-₹${Math.abs(pending)} (you owe ${updatedPeer.name})` : `₹${pending}`;
       return res.status(200).json({
         success: true,
-        mode: 'PROPOSAL_CONFIRMATION',
+        mode: 'PEER_BALANCE',
         intentCategory: 'DEBT_STATEMENT',
-        reply: formatReplyWithUser(confirmationPrompt, displayName),
-        proposal,
-        engine: 'heuristic',
-        note: 'Requires user confirmation before logging peer debt',
+        reply: `Recorded: Logged that ${updatedPeer.name} owes you ₹${pAmt}${pDesc ? ` for ${pDesc}` : ''}. (Pending: ${pendingStr})`,
+        peerLedger: { action: 'LOGGED', peer: updatedPeer },
+        engine: 'peer_ledger',
+      });
+    }
+
+    if (iOwe) {
+      const pName = iOwe[1];
+      const pAmt = parseFloat(iOwe[2].replace(/,/g, ''));
+      const pDesc = iOwe[3]?.trim() || '';
+      const { updatedPeer } = applyPeerTransaction(currentPeers, {
+        type: 'TRANSACTION',
+        personName: pName,
+        direction: 'RECEIVED',
+        amount: pAmt,
+        dateStr: getTodayIsoDate(),
+        description: pDesc,
+      });
+      const { pending } = calculatePeerLedgerTotals(updatedPeer);
+      const pendingStr = pending < 0 ? `-₹${Math.abs(pending)} (you owe ${updatedPeer.name})` : `₹${pending}`;
+      return res.status(200).json({
+        success: true,
+        mode: 'PEER_BALANCE',
+        intentCategory: 'DEBT_STATEMENT',
+        reply: `Recorded: Logged that you owe ${updatedPeer.name} ₹${pAmt}${pDesc ? ` for ${pDesc}` : ''}. (Pending: ${pendingStr})`,
+        peerLedger: { action: 'LOGGED', peer: updatedPeer },
+        engine: 'peer_ledger',
       });
     }
   }
@@ -281,7 +417,7 @@ Call parse_and_log_transaction ONLY if amount > 0.`,
       mode: 'TEXT_QUERY',
       intentCategory: 'GENERAL_CHAT',
       reply: formatReplyWithUser(
-        'I couldn\'t detect a positive spending amount. Try typing "Spent 200 on lunch" or "Rahul owes me 500".',
+        'I couldn\'t detect a positive spending amount. Try typing "Spent 200 on lunch" or "I gave Rahul 2000".',
         displayName
       ),
       engine: 'heuristic',
@@ -319,3 +455,4 @@ Call parse_and_log_transaction ONLY if amount > 0.`,
     note: 'Requires user confirmation before logging transaction',
   });
 }
+

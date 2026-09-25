@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, BarChart2, Plus, Sparkles } from 'lucide-react';
+import { Home, BarChart2, Plus, Sparkles, PiggyBank } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext.js';
 
 interface BottomNavBarProps {
@@ -48,7 +48,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
 
       <nav
         id="fixed-bottom-nav-bar"
-        className="fixed bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 p-1.5 sm:p-2 rounded-full select-none max-w-[95vw] group isolate"
+        className="fixed bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 p-1.5 sm:p-2 rounded-full select-none w-[90vw] max-w-[390px] sm:max-w-[430px] group isolate"
         aria-label="Floating Page Navigation"
       >
         {/* LAYER 1: Liquid Refractive Glass Background & Displacement Filter */}
@@ -85,8 +85,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           }}
         />
 
-        {/* INNER CONTENT WRAPPER: Guaranteed high-contrast touch targets & crisp icons */}
-        <div className="relative flex items-center gap-1.5 sm:gap-2.5 px-1.5">
+        {/* INNER CONTENT WRAPPER: Guaranteed high-contrast touch targets & crisp icons with balanced distribution */}
+        <div className="relative flex items-center justify-between w-full px-2 sm:px-3">
           {/* 1. Tab 0: Dashboard (Home) */}
           <button
             id="bottom-nav-dashboard-btn"
@@ -121,7 +121,24 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <BarChart2 className={`w-5 h-5 ${currentPage === 1 && !isAiChatOpen ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
           </button>
 
-          {/* 3. Center Action Button: Dynamic Theme Gradient pill button */}
+          {/* 3. Tab 3: Savings & Assets */}
+          <button
+            id="bottom-nav-savings-btn"
+            onClick={() => onNavigateToPage(3)}
+            title="Page 4: Savings & Assets"
+            aria-label="Savings"
+            className={`relative transition-all duration-200 flex items-center justify-center cursor-pointer ${
+              currentPage === 3 && !isAiChatOpen
+                ? 'w-11 h-11 rounded-full bg-slate-900 text-white shadow-md shadow-slate-900/30 font-bold'
+                : theme.isDark
+                ? 'w-11 h-11 rounded-full text-slate-100 hover:text-white hover:bg-white/10 active:scale-95'
+                : 'w-11 h-11 rounded-full text-slate-800 hover:text-slate-950 hover:bg-black/5 active:scale-95'
+            }`}
+          >
+            <PiggyBank className={`w-5 h-5 ${currentPage === 3 && !isAiChatOpen ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
+          </button>
+
+          {/* 4. Center Action Button: Dynamic Theme Gradient pill button */}
           {onOpenAdd && (
             <button
               id="bottom-nav-center-add-btn"
@@ -134,7 +151,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             </button>
           )}
 
-          {/* 4. AI Chat Copilot (Sparkles motif matching brand) */}
+          {/* 5. AI Chat Copilot (Sparkles motif matching brand) */}
           {onToggleAiChat && (
             <button
               id="bottom-nav-ai-chat-btn"

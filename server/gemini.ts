@@ -101,10 +101,20 @@ export const answerFinancialQueryTool: FunctionDeclaration = {
  * Formats assistant responses with "Hi <displayName>, <remaining message>"
  */
 export function formatReplyWithUser(rawReply: string, displayName: string): string {
-  const name = (displayName || 'Guest').trim();
   const trimmed = (rawReply || '').trim();
-  if (!trimmed) return `Hi ${name}, how can I help you today?`;
+  if (!trimmed) return `Hi ${(displayName || 'Guest').trim()}, how can I help you today?`;
 
+  // NEVER add greeting to exact ledger profile format or ledger prompts
+  if (
+    (trimmed.includes('You gave: ₹') && trimmed.includes('Received back: ₹') && trimmed.includes('Pending: ')) ||
+    trimmed.startsWith('No transactions found for ') ||
+    trimmed.startsWith('Who was this with?') ||
+    trimmed.startsWith('Did you give ₹')
+  ) {
+    return trimmed;
+  }
+
+  const name = (displayName || 'Guest').trim();
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const existingWithTargetName = new RegExp(
     `^(?:hi\\s+there|hello\\s+there|hey\\s+there|hi|hello|hey)\\s+${escapedName}\\b[,!.:]?\\s*`,

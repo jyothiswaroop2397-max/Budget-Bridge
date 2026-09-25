@@ -1,53 +1,123 @@
 import { Dispatch, SetStateAction } from 'react';
-import { AppState, PeerBalance, PeerBalanceType } from '../types.js';
+import { AppState, PeerBalance, PeerBalanceType, PeerExpenseItem } from '../types.js';
 import { useToast } from './useToast.js';
+import { calculatePeerLedgerTotals, getTodayIsoDate } from '../utils/peerLedger.js';
 
 export interface AddPeerBalanceInput {
   name: string;
   type: PeerBalanceType;
   amount: number;
   note?: string;
+  direction?: 'GAVE' | 'RECEIVED';
+  dateStr?: string;
+  directPeer?: PeerBalance;
 }
 
 export function usePeerBalances(setState: Dispatch<SetStateAction<AppState>>) {
   const { showToast } = useToast();
 
-  // Add peer balance handler
+  // Add or update running peer ledger balance handler
   const handleAddPeerBalance = (data: AddPeerBalanceInput) => {
+    if (data.directPeer) {
+      const p = data.directPeer;
+      setState((prev) => {
+        const normName = p.name.trim().toLowerCase();
+        const existingIdx = prev.peerBalances.findIndex((x) => x.name.trim().toLowerCase() === normName);
+        if (existingIdx >= 0) {
+          const updated = [...prev.peerBalances];
+          updated[existingIdx] = p;
+          return { ...prev, peerBalances: updated };
+        }
+        return { ...prev, peerBalances: [p, ...prev.peerBalances] };
+      });
+      return;
+    }
+
     if (!data || !data.name?.trim() || isNaN(data.amount) || data.amount <= 0) {
       console.warn('[App State] Refused to add peer balance with invalid data:', data);
       showToast('Please provide a valid person name and positive amount.', 'error');
       return;
     }
 
-    const peerId = `peer-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    const normName = data.name.trim().toLowerCase();
     const amt = Math.abs(data.amount);
-    const newPeer: PeerBalance = {
-      id: peerId,
-      name: data.name.trim(),
-      type: data.type,
+    const direction: 'GAVE' | 'RECEIVED' = data.direction || (data.type === 'OWED_TO_YOU' ? 'GAVE' : 'RECEIVED');
+    const dateStr = data.dateStr || getTodayIsoDate();
+
+    const newItem: PeerExpenseItem = {
+      id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      description: data.note?.trim() || (direction === 'GAVE' ? 'Money given' : 'Money received'),
       amount: amt,
-      note: data.note?.trim(),
-      updatedAt: Date.now(),
-      items: [
-        {
-          id: `item-${Date.now()}-1`,
-          description: data.note?.trim() || (data.type === 'OWED_TO_YOU' ? 'Expense split' : 'Borrowed / Expense'),
-          amount: amt,
-          date: Date.now(),
-        },
-      ],
+      date: Date.now(),
+      dateStr,
+      direction,
     };
 
-    setState((prev) => ({
-      ...prev,
-      peerBalances: [newPeer, ...prev.peerBalances],
-    }));
+    setState((prev) => {
+      const existingIdx = prev.peerBalances.findIndex((p) => p.name.trim().toLowerCase() === normName);
+
+      if (existingIdx >= 0) {
+        const target = prev.peerBalances[existingIdx];
+        const currentItems = target.items && target.items.length > 0
+          ? target.items
+          : [
+              {
+                id: `item-${target.id}-init`,
+                description: target.note || (target.type === 'OWED_TO_YOU' ? 'Initial given' : 'Initial received'),
+                amount: target.amount,
+                date: target.updatedAt || Date.now(),
+                dateStr: getTodayIsoDate(),
+                direction: target.type === 'OWED_TO_YOU' ? ('GAVE' as const) : ('RECEIVED' as const),
+              },
+            ];
+
+        const newItems = [...currentItems, newItem];
+        const totals = calculatePeerLedgerTotals({ items: newItems });
+        const newType: PeerBalanceType = totals.pending >= 0 ? 'OWED_TO_YOU' : 'I_OWE';
+
+        const updatedPeer: PeerBalance = {
+          ...target,
+          name: data.name.trim(),
+          type: newType,
+          amount: Math.abs(totals.pending),
+          totalGiven: totals.totalGiven,
+          totalReceived: totals.totalReceived,
+          updatedAt: Date.now(),
+          items: newItems,
+        };
+
+        const updatedList = [...prev.peerBalances];
+        updatedList[existingIdx] = updatedPeer;
+        return { ...prev, peerBalances: updatedList };
+      } else {
+        const isGave = direction === 'GAVE';
+        const totalGiven = isGave ? amt : 0;
+        const totalReceived = isGave ? 0 : amt;
+        const pending = totalGiven - totalReceived;
+
+        const newPeer: PeerBalance = {
+          id: `peer-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          name: data.name.trim(),
+          type: pending >= 0 ? 'OWED_TO_YOU' : 'I_OWE',
+          amount: Math.abs(pending),
+          totalGiven,
+          totalReceived,
+          note: data.note?.trim() || (direction === 'GAVE' ? 'Money given' : 'Money received'),
+          updatedAt: Date.now(),
+          items: [newItem],
+        };
+
+        return {
+          ...prev,
+          peerBalances: [newPeer, ...prev.peerBalances],
+        };
+      }
+    });
 
     showToast(
-      data.type === 'OWED_TO_YOU'
-        ? `Added debt balance: ${newPeer.name} owes you.`
-        : `Added debt balance: You owe ${newPeer.name}.`,
+      direction === 'GAVE'
+        ? `Logged: You gave ₹${amt} to ${data.name.trim()}.`
+        : `Logged: Received ₹${amt} from ${data.name.trim()}.`,
       'success'
     );
   };

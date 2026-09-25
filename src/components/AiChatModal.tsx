@@ -18,6 +18,7 @@ import {
   BudgetContext,
   Category,
   ChatProposal,
+  PeerBalance,
   PeerBalanceType,
   TransactionType,
   UserProfile,
@@ -43,15 +44,29 @@ interface AiChatModalProps {
     type: PeerBalanceType;
     amount: number;
     note?: string;
+    direction?: 'GAVE' | 'RECEIVED';
+    dateStr?: string;
+    directPeer?: PeerBalance;
   }) => void;
 }
 
-// Formats every assistant reply to mention "Hi <displayName>, <remaining message>"
+// Formats assistant replies to mention "Hi <displayName>, <remaining message>"
+// (Preserves exact ledger profile formats and clarifying questions without greeting prefix)
 export function formatAssistantReply(reply: string, displayName: string): string {
-  const name = (displayName || 'Guest').trim();
   const trimmed = (reply || '').trim();
-  if (!trimmed) return `Hi ${name}, how can I help you today?`;
+  if (!trimmed) return `Hi ${(displayName || 'Guest').trim()}, how can I help you today?`;
 
+  // NEVER add greeting prefix to exact ledger profile format or ledger prompts
+  if (
+    (trimmed.includes('You gave: ₹') && trimmed.includes('Received back: ₹') && trimmed.includes('Pending: ')) ||
+    trimmed.startsWith('No transactions found for ') ||
+    trimmed.startsWith('Who was this with?') ||
+    trimmed.startsWith('Did you give ₹')
+  ) {
+    return trimmed;
+  }
+
+  const name = (displayName || 'Guest').trim();
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const existingWithTargetName = new RegExp(`^(?:hi\\s+there|hello\\s+there|hey\\s+there|hi|hello|hey)\\s+${escapedName}\\b[,!.:]?\\s*`, 'i');
 
@@ -99,12 +114,21 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({
     'Guest'
   ).trim();
 
+  // Local running peer ledger state for real-time conversation continuity
+  const [sessionPeers, setSessionPeers] = useState<PeerBalance[]>(() => budgetContext?.peerBalances || []);
+
+  useEffect(() => {
+    if (budgetContext?.peerBalances) {
+      setSessionPeers(budgetContext.peerBalances);
+    }
+  }, [budgetContext?.peerBalances]);
+
   const [messages, setMessages] = useState<AgentChatMessage[]>(() => [
     {
       id: 'welcome-msg',
       role: 'assistant',
       text: formatAssistantReply(
-        "I am your Budget Bridge Assistant 👋 I help you log expenses, track who owes you money, and analyze your budget.\n\nTry typing 'Spent 200 on lunch' or 'Rahul owes me 500'. I'll always ask for your confirmation before logging anything.",
+        "I am your personal finance assistant 👋 I track money lent and borrowed with friends, maintain running ledgers, and manage your daily budget.\n\nTry typing 'I gave Rahul 2000', 'Rahul paid me back 1000', or 'show Rahul' to view his ledger.",
         displayName
       ),
       timestamp: Date.now(),
@@ -119,7 +143,7 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({
           {
             ...prev[0],
             text: formatAssistantReply(
-              "I am your Budget Bridge Assistant 👋 I help you log expenses, track who owes you money, and analyze your budget.\n\nTry typing 'Spent 200 on lunch' or 'Rahul owes me 500'. I'll always ask for your confirmation before logging anything.",
+              "I am your personal finance assistant 👋 I track money lent and borrowed with friends, maintain running ledgers, and manage your daily budget.\n\nTry typing 'I gave Rahul 2000', 'Rahul paid me back 1000', or 'show Rahul' to view his ledger.",
               displayName
             ),
           },
@@ -151,13 +175,13 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({
   if (!isOpen) return null;
 
   const quickPrompts = [
+    'I gave Rahul 2000',
+    'Rahul paid me back 1000',
+    'show Rahul',
+    'I lent Priya 500 for lunch',
+    'show Priya',
     'Spent 200 on lunch',
-    'Rahul owes me 500',
-    'What is my avg weekly expenditure?',
     'What is my total monthly expenditure?',
-    'Am I over budget today?',
-    'Who owes me money?',
-    'How much have I spent on Food?',
   ];
 
   // Helper to confirm a pending proposal
@@ -258,7 +282,10 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: textToSend,
-          budgetContext,
+          budgetContext: {
+            ...budgetContext,
+            peerBalances: sessionPeers,
+          },
           userName: displayName,
         }),
       });
@@ -271,9 +298,29 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({
       const rawReplyText = data.reply || 'Processed your request.';
       const replyText = formatAssistantReply(rawReplyText, displayName);
 
-      // NOTE: We DO NOT write to transactions table directly!
-      // Any transaction or peer debt proposal is passed through data.proposal
-      // and requires the user to click Confirm or type "yes".
+      // If a peer balance was logged or updated in running ledger
+      if (data.peerLedger?.peer) {
+        const updatedPeer: PeerBalance = data.peerLedger.peer;
+        setSessionPeers((prev) => {
+          const normName = updatedPeer.name.trim().toLowerCase();
+          const idx = prev.findIndex((p) => p.name.trim().toLowerCase() === normName);
+          if (idx >= 0) {
+            const nextList = [...prev];
+            nextList[idx] = updatedPeer;
+            return nextList;
+          }
+          return [updatedPeer, ...prev];
+        });
+
+        if (onAddPeerBalance) {
+          onAddPeerBalance({
+            directPeer: updatedPeer,
+            name: updatedPeer.name,
+            type: updatedPeer.type,
+            amount: updatedPeer.amount,
+          });
+        }
+      }
 
       const assistantMsg: AgentChatMessage = {
         id: `assistant-${Date.now()}`,
@@ -283,6 +330,7 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({
         mode: data.mode,
         intentCategory: data.intentCategory,
         proposal: data.proposal,
+        peerLedger: data.peerLedger,
         queryDetails: data.queryDetails,
         engine: data.engine,
       };

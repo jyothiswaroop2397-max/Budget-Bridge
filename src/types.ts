@@ -52,6 +52,8 @@ export interface PeerExpenseItem {
   description: string;
   amount: number;
   date?: number;
+  dateStr?: string;
+  direction?: 'GAVE' | 'RECEIVED';
 }
 
 export interface PeerBalance {
@@ -62,6 +64,8 @@ export interface PeerBalance {
   note?: string;
   updatedAt: number;
   items?: PeerExpenseItem[];
+  totalGiven?: number;
+  totalReceived?: number;
 }
 
 export interface BudgetContext {
@@ -76,12 +80,7 @@ export interface BudgetContext {
   transactionsCount: number;
   totalOwedToYou?: number;
   totalIOwe?: number;
-  peerBalances?: Array<{
-    name: string;
-    type: PeerBalanceType;
-    amount: number;
-    note?: string;
-  }>;
+  peerBalances?: Array<PeerBalance>;
   recentTransactions?: Array<{
     merchant: string;
     amount: number;
@@ -154,6 +153,10 @@ export interface AgentChatMessage {
     calculatedAmount?: number | null;
     category?: string;
   };
+  peerLedger?: {
+    action: 'LOGGED' | 'QUERY';
+    peer: PeerBalance;
+  };
   engine?: 'gemini' | 'heuristic';
 }
 
@@ -174,6 +177,10 @@ export interface AgentApiResponse {
     type: PeerBalanceType;
     amount: number;
     note?: string;
+  };
+  peerLedger?: {
+    action: 'LOGGED' | 'QUERY';
+    peer: PeerBalance;
   };
   queryDetails?: {
     queryType: string;
@@ -200,4 +207,5 @@ export interface AppState {
   smsPermissionGranted: boolean;
   silentVerificationActive: boolean;
   userProfile?: UserProfile;
+  savingsEntries?: import('./types/savings.js').SavingsEntry[];
 }

@@ -99,10 +99,15 @@ export function useDerivedFinancials(
       totalOwedToYou,
       totalIOwe,
       peerBalances: state.peerBalances.map((p) => ({
+        id: p.id,
         name: p.name,
         type: p.type,
         amount: p.amount,
         note: p.note,
+        totalGiven: p.totalGiven,
+        totalReceived: p.totalReceived,
+        updatedAt: p.updatedAt,
+        items: p.items || [],
       })),
       recentTransactions: state.transactions.slice(0, 8).map((t) => ({
         merchant: t.merchant,
