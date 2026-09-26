@@ -64,6 +64,7 @@ export function useBudgetSettings(setState: Dispatch<SetStateAction<AppState>>) 
       currency: DEFAULT_STATE.currency,
       transactions: INITIAL_DEMO_TRANSACTIONS,
       peerBalances: INITIAL_DEMO_PEER_BALANCES,
+      savingsEntries: [],
       lastActiveDate: getTodayDateString(),
       smsPermissionGranted: true,
       silentVerificationActive: true,

@@ -153,12 +153,29 @@ export function classifyMessageIntent(input: string): {
     return { category: 'GENERAL_CHAT', amount: null, rawText };
   }
 
-  // 1. Check for Category (c): BUDGET_QUERY
+  // 1. Check for Category (c): BUDGET_QUERY / FINANCIAL_HEALTH_QUERY
   const normalizedForIntent = text
     .replace(/\bexpediture\b/g, 'expenditure')
     .replace(/\baverge\b/g, 'average')
     .replace(/\bwhats\b/g, 'what is')
     .replace(/\bwhat's\b/g, 'what is');
+
+  const isFinancialHealthQuery =
+    FINANCIAL_HEALTH_KEYWORDS.some((kw) => normalizedForIntent.includes(kw)) ||
+    ((normalizedForIntent.includes('score') || normalizedForIntent.includes('health') || normalizedForIntent.includes('rating')) &&
+      (normalizedForIntent.includes('why') ||
+        normalizedForIntent.includes('how') ||
+        normalizedForIntent.includes('improve') ||
+        normalizedForIntent.includes('what') ||
+        normalizedForIntent.includes('low') ||
+        normalizedForIntent.includes('affect') ||
+        normalizedForIntent.includes('hurt') ||
+        normalizedForIntent.includes('boost') ||
+        normalizedForIntent.includes('breakdown')));
+
+  if (isFinancialHealthQuery) {
+    return { category: 'FINANCIAL_HEALTH_QUERY', amount: null, rawText };
+  }
 
   const hasQuestionWord =
     normalizedForIntent.includes('?') ||
@@ -189,7 +206,9 @@ export function classifyMessageIntent(input: string): {
     normalizedForIntent.includes('owe') ||
     normalizedForIntent.includes('history') ||
     normalizedForIntent.includes('recent') ||
-    normalizedForIntent.includes('breakdown');
+    normalizedForIntent.includes('breakdown') ||
+    normalizedForIntent.includes('health') ||
+    normalizedForIntent.includes('score');
 
   const isBudgetQuestion = hasQuestionWord && hasFinancialTopic;
 
@@ -504,6 +523,50 @@ export function classifyCategory(text: string, isPeerOrSocial: boolean = false):
 
   return 'Other';
 }
+
+export const FINANCIAL_HEALTH_KEYWORDS: string[] = [
+  'financial health',
+  'financial score',
+  'health score',
+  'financial rating',
+  'financial vitals',
+  'financial condition',
+  'health breakdown',
+  'score breakdown',
+  'why is my financial health',
+  'why is my score',
+  'why is my financial score',
+  'what is hurting my financial',
+  "what's hurting my financial",
+  'what is hurting my score',
+  "what's hurting my score",
+  'what is affecting my financial',
+  "what's affecting my financial",
+  'what is affecting my score',
+  "what's affecting my score",
+  'how do i improve my score',
+  'how to improve my score',
+  'how do i improve my financial',
+  'how to improve my financial',
+  'how can i improve my score',
+  'how can i improve my financial',
+  'how is my financial health',
+  "how's my financial health",
+  'how is my financial score',
+  "how's my financial score",
+  'how is my score',
+  "how's my score",
+  'what is my financial health',
+  "what's my financial health",
+  'what is my financial score',
+  "what's my financial score",
+  'what is my score',
+  "what's my score",
+  'boost my score',
+  'increase my score',
+  'raise my score',
+  'emergency buffer',
+];
 
 /**
  * Natural language transaction parser with full extraction pipeline and console step logging.

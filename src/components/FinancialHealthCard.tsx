@@ -11,6 +11,9 @@ import {
   CheckCircle2,
   Clock,
   Layers,
+  HelpCircle,
+  Settings,
+  PlusCircle,
 } from 'lucide-react';
 import {
   FinancialHealthResult,
@@ -23,6 +26,8 @@ import { useTheme } from '../context/ThemeContext.js';
 interface FinancialHealthCardProps {
   data?: FinancialHealthInput;
   result?: FinancialHealthResult;
+  onNavigateToSettings?: () => void;
+  onNavigateToAdd?: () => void;
   className?: string;
 }
 
@@ -31,7 +36,7 @@ const getStatusBadgeStyle = (status: HealthStatusLevel, isDark: boolean) => {
   switch (status) {
     case 'Excellent':
     case 'Healthy':
-    case 'Low': // For debt & recurring, Low is great!
+    case 'Low': // For debt & recurring, Low is positive
       return {
         bg: isDark ? 'bg-emerald-500/15' : 'bg-emerald-50',
         text: isDark ? 'text-emerald-400' : 'text-emerald-700',
@@ -51,10 +56,19 @@ const getStatusBadgeStyle = (status: HealthStatusLevel, isDark: boolean) => {
         text: isDark ? 'text-amber-400' : 'text-amber-700',
         border: isDark ? 'border-amber-500/30' : 'border-amber-200',
       };
+    case 'No Data':
+    case 'Not Set':
+    case 'Awaiting Data':
+      return {
+        bg: isDark ? 'bg-slate-800' : 'bg-slate-100',
+        text: isDark ? 'text-slate-400' : 'text-slate-600',
+        border: isDark ? 'border-slate-700' : 'border-slate-200',
+      };
     case 'Poor':
     case 'High':
     case 'At Risk':
     case 'Concerning':
+    case 'Critical':
     default:
       return {
         bg: isDark ? 'bg-rose-500/15' : 'bg-rose-50',
@@ -71,6 +85,8 @@ const getStatusBadgeStyle = (status: HealthStatusLevel, isDark: boolean) => {
 export const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({
   data,
   result: propResult,
+  onNavigateToSettings,
+  onNavigateToAdd,
   className = '',
 }) => {
   const { theme } = useTheme();
@@ -83,7 +99,10 @@ export const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({
   const radius = 48;
   const strokeWidth = 9;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (health.score / 100) * circumference;
+  const strokeDashoffset =
+    health.hasData && typeof health.score === 'number'
+      ? circumference - (health.score / 100) * circumference
+      : circumference;
 
   return (
     <div
@@ -145,32 +164,59 @@ export const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({
               strokeWidth={strokeWidth}
               fill="transparent"
             />
-            {/* Animated progress ring */}
-            <circle
-              cx="60"
-              cy="60"
-              r={radius}
-              stroke={health.color}
-              strokeWidth={strokeWidth}
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              fill="transparent"
-              className="transition-all duration-1000 ease-out"
-            />
+            {/* Animated progress ring (active only when data exists) */}
+            {health.hasData && typeof health.score === 'number' ? (
+              <circle
+                cx="60"
+                cy="60"
+                r={radius}
+                stroke={health.color}
+                strokeWidth={strokeWidth}
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                fill="transparent"
+                className="transition-all duration-1000 ease-out"
+              />
+            ) : (
+              <circle
+                cx="60"
+                cy="60"
+                r={radius}
+                stroke="#64748B"
+                strokeWidth={strokeWidth}
+                strokeDasharray="6 6"
+                strokeDashoffset="0"
+                fill="transparent"
+                className="opacity-40"
+              />
+            )}
           </svg>
 
-          {/* Center Score Numbers */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none">
-            <span
-              className="text-3xl font-extrabold font-display tracking-tight leading-none"
-              style={{ color: health.color }}
-            >
-              {health.score}
-            </span>
-            <span className={`text-[11px] font-semibold mt-0.5 ${theme.isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              out of 100
-            </span>
+          {/* Center Score Display */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none px-2">
+            {health.hasData && typeof health.score === 'number' ? (
+              <>
+                <span
+                  className="text-3xl font-extrabold font-display tracking-tight leading-none"
+                  style={{ color: health.color }}
+                >
+                  {health.score}
+                </span>
+                <span className={`text-[11px] font-semibold mt-0.5 ${theme.isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  out of 100
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-sm sm:text-base font-extrabold font-display tracking-tight leading-tight text-slate-500 dark:text-slate-400 uppercase">
+                  Unrated
+                </span>
+                <span className={`text-[10px] font-medium mt-0.5 ${theme.isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                  No Transactions
+                </span>
+              </>
+            )}
           </div>
         </div>
 
@@ -178,42 +224,73 @@ export const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({
         <div className="flex-1 text-center sm:text-left">
           <div className="flex items-center justify-center sm:justify-start gap-2 mb-1.5">
             <span className={`text-lg font-bold ${theme.isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-              Your score is {health.label}
+              {health.hasData ? `Your score is ${health.label}` : 'Score Unrated (No Transactions Noted)'}
             </span>
           </div>
           <p className={`text-xs sm:text-[13px] leading-relaxed mb-3 ${theme.isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-            {health.strongestFactor.explanation}
+            {health.hasData
+              ? health.strongestFactor.explanation
+              : health.emptyStateMessage || 'Log your first expense or income transaction to evaluate your financial health score.'}
           </p>
 
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: health.color }} />
-              <span className={theme.isDark ? 'text-slate-300' : 'text-slate-700'}>
-                {health.metrics.monthsBufferCovered} mo. buffer
-              </span>
-            </div>
-            <span aria-hidden="true" className="opacity-40">·</span>
-            <div className="flex items-center gap-1.5">
-              <span className={theme.isDark ? 'text-slate-300' : 'text-slate-700'}>
-                {Math.round(health.metrics.savingsRate * 100)}% savings rate
-              </span>
-            </div>
-            {health.metrics.totalIOwe > 0 && (
-              <>
-                <span aria-hidden="true" className="opacity-40">·</span>
+          {health.hasData ? (
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: health.color }} />
                 <span className={theme.isDark ? 'text-slate-300' : 'text-slate-700'}>
-                  ₹{health.metrics.totalIOwe.toLocaleString()} debt
+                  {health.metrics.monthsBufferCovered} mo. buffer
                 </span>
-              </>
-            )}
-          </div>
+              </div>
+              <span aria-hidden="true" className="opacity-40">·</span>
+              <div className="flex items-center gap-1.5">
+                <span className={theme.isDark ? 'text-slate-300' : 'text-slate-700'}>
+                  {Math.round(health.metrics.savingsRate * 100)}% savings rate
+                </span>
+              </div>
+              {health.metrics.totalIOwe > 0 && (
+                <>
+                  <span aria-hidden="true" className="opacity-40">·</span>
+                  <span className={theme.isDark ? 'text-slate-300' : 'text-slate-700'}>
+                    ₹{health.metrics.totalIOwe.toLocaleString()} debt
+                  </span>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+              {onNavigateToAdd && (
+                <button
+                  type="button"
+                  onClick={onNavigateToAdd}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer active:scale-95"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Log First Expense</span>
+                </button>
+              )}
+              {onNavigateToSettings && (
+                <button
+                  type="button"
+                  onClick={onNavigateToSettings}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-colors cursor-pointer ${
+                    theme.isDark
+                      ? 'border-slate-700 hover:bg-slate-800 text-slate-300'
+                      : 'border-slate-300 hover:bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Configure Budget Cap</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Factor Breakdown Rows */}
       <div className="space-y-2.5 mb-4">
         <h4 className={`text-xs font-bold uppercase tracking-wider mb-2 ${theme.isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-          Score Breakdown & Factors
+          Score Breakdown & Dimensions
         </h4>
 
         {health.factors
@@ -234,6 +311,11 @@ export const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({
                     <span className={`text-xs sm:text-sm font-semibold truncate ${theme.isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                       {factor.name}
                     </span>
+                    {health.hasData && typeof health.score === 'number' && (
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        ({factor.score}/{factor.maxScore} pts)
+                      </span>
+                    )}
                   </div>
                   <span className={`text-[11px] block mt-0.5 truncate ${theme.isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     {factor.description}
@@ -269,7 +351,7 @@ export const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({
         >
           <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
             <Sparkles className="w-4 h-4 text-amber-500" />
-            <span>Why this score?</span>
+            <span>How is this score calculated?</span>
           </div>
           <div className="flex items-center gap-1 text-xs text-slate-400">
             <span>{isWhyExpanded ? 'Collapse' : 'Tap to expand'}</span>
@@ -279,56 +361,80 @@ export const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({
 
         {isWhyExpanded && (
           <div className="mt-3 space-y-3 pt-2 text-xs leading-relaxed animate-fade-in">
-            {/* Strongest Factor */}
-            <div
-              className={`p-3.5 rounded-2xl border ${
-                theme.isDark
-                  ? 'bg-emerald-950/20 border-emerald-500/20 text-emerald-200'
-                  : 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
-              }`}
-            >
-              <div className="flex items-center gap-2 font-bold text-xs mb-1 text-emerald-600 dark:text-emerald-400">
-                <TrendingUp className="w-4 h-4" />
-                <span>Strongest Factor: {health.strongestFactor.name}</span>
-              </div>
-              <p className={theme.isDark ? 'text-slate-300' : 'text-slate-700'}>
-                {health.strongestFactor.explanation}
-              </p>
-            </div>
+            {health.hasData ? (
+              <>
+                {/* Strongest Factor */}
+                <div
+                  className={`p-3.5 rounded-2xl border ${
+                    theme.isDark
+                      ? 'bg-emerald-950/20 border-emerald-500/20 text-emerald-200'
+                      : 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 font-bold text-xs mb-1 text-emerald-600 dark:text-emerald-400">
+                    <TrendingUp className="w-4 h-4" />
+                    <span>Strongest Factor: {health.strongestFactor.name}</span>
+                  </div>
+                  <p className={theme.isDark ? 'text-slate-300' : 'text-slate-700'}>
+                    {health.strongestFactor.explanation}
+                  </p>
+                </div>
 
-            {/* Weakest Factor */}
-            <div
-              className={`p-3.5 rounded-2xl border ${
-                theme.isDark
-                  ? 'bg-rose-950/20 border-rose-500/20 text-rose-200'
-                  : 'bg-rose-50/80 border-rose-200 text-rose-900'
-              }`}
-            >
-              <div className="flex items-center gap-2 font-bold text-xs mb-1 text-rose-600 dark:text-rose-400">
-                <AlertCircle className="w-4 h-4" />
-                <span>Weakest Factor: {health.weakestFactor.name}</span>
-              </div>
-              <p className={theme.isDark ? 'text-slate-300' : 'text-slate-700'}>
-                {health.weakestFactor.explanation}
-              </p>
-            </div>
+                {/* Weakest Factor */}
+                <div
+                  className={`p-3.5 rounded-2xl border ${
+                    theme.isDark
+                      ? 'bg-rose-950/20 border-rose-500/20 text-rose-200'
+                      : 'bg-rose-50/80 border-rose-200 text-rose-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 font-bold text-xs mb-1 text-rose-600 dark:text-rose-400">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Weakest Factor: {health.weakestFactor.name}</span>
+                  </div>
+                  <p className={theme.isDark ? 'text-slate-300' : 'text-slate-700'}>
+                    {health.weakestFactor.explanation}
+                  </p>
+                </div>
 
-            {/* Actionable Suggestion */}
-            <div
-              className={`p-3.5 rounded-2xl border ${
-                theme.isDark
-                  ? 'bg-amber-950/20 border-amber-500/20 text-amber-200'
-                  : 'bg-amber-50/80 border-amber-200 text-amber-900'
-              }`}
-            >
-              <div className="flex items-center gap-2 font-bold text-xs mb-1 text-amber-600 dark:text-amber-400">
-                <Lightbulb className="w-4 h-4" />
-                <span>Suggested Action</span>
+                {/* Actionable Suggestion */}
+                <div
+                  className={`p-3.5 rounded-2xl border ${
+                    theme.isDark
+                      ? 'bg-amber-950/20 border-amber-500/20 text-amber-200'
+                      : 'bg-amber-50/80 border-amber-200 text-amber-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 font-bold text-xs mb-1 text-amber-600 dark:text-amber-400">
+                    <Lightbulb className="w-4 h-4" />
+                    <span>Suggested Action</span>
+                  </div>
+                  <p className={theme.isDark ? 'text-slate-300' : 'text-slate-700'}>
+                    {health.actionableSuggestion}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div
+                className={`p-3.5 rounded-2xl border ${
+                  theme.isDark
+                    ? 'bg-slate-800/80 border-slate-700 text-slate-300'
+                    : 'bg-slate-50 border-slate-200 text-slate-700'
+                }`}
+              >
+                <div className="font-bold text-xs mb-1 text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4 text-emerald-500" />
+                  <span>The 5 Core Dimensions of Financial Health:</span>
+                </div>
+                <ul className="list-disc list-inside space-y-1 mt-2 text-[11px] text-slate-600 dark:text-slate-400">
+                  <li><strong>Monthly Budget Adherence (25 pts):</strong> Staying within your monthly budget cap.</li>
+                  <li><strong>Daily Spending Discipline (15 pts):</strong> Maintaining consistent, controlled daily spending.</li>
+                  <li><strong>Cashflow & Savings Rate (25 pts):</strong> Retaining at least 20% of income after all expenses.</li>
+                  <li><strong>Debt Exposure & Peer Balances (15 pts):</strong> Keeping liabilities low relative to cashflow.</li>
+                  <li><strong>Emergency Savings Buffer (20 pts):</strong> Accumulating 3+ months of expenses in savings.</li>
+                </ul>
               </div>
-              <p className={theme.isDark ? 'text-slate-300' : 'text-slate-700'}>
-                {health.actionableSuggestion}
-              </p>
-            </div>
+            )}
           </div>
         )}
       </div>
@@ -360,7 +466,10 @@ export const FinancialHealthCompactCard: React.FC<FinancialHealthCompactCardProp
   const miniRadius = 18;
   const miniStroke = 4;
   const miniCircumference = 2 * Math.PI * miniRadius;
-  const miniOffset = miniCircumference - (health.score / 100) * miniCircumference;
+  const miniOffset =
+    health.hasData && typeof health.score === 'number'
+      ? miniCircumference - (health.score / 100) * miniCircumference
+      : miniCircumference;
 
   return (
     <div
@@ -378,7 +487,7 @@ export const FinancialHealthCompactCard: React.FC<FinancialHealthCompactCardProp
         borderColor: theme.isDark ? theme.borderSubtle : 'rgba(226, 232, 240, 0.9)',
       }}
       className={`w-full rounded-2xl border p-3.5 sm:p-4 shadow-sm flex items-center justify-between gap-3 cursor-pointer transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-emerald-500 ${className}`}
-      aria-label={`Financial Health Score: ${health.score} out of 100, status ${health.label}. Tap to view full analysis.`}
+      aria-label={`Financial Health: ${health.label}. Tap to view full analysis.`}
     >
       <div className="flex items-center gap-3 min-w-0">
         {/* Mini Circular Gauge */}
@@ -392,23 +501,36 @@ export const FinancialHealthCompactCard: React.FC<FinancialHealthCompactCardProp
               strokeWidth={miniStroke}
               fill="transparent"
             />
-            <circle
-              cx="22"
-              cy="22"
-              r={miniRadius}
-              stroke={health.color}
-              strokeWidth={miniStroke}
-              strokeDasharray={miniCircumference}
-              strokeDashoffset={miniOffset}
-              strokeLinecap="round"
-              fill="transparent"
-            />
+            {health.hasData && typeof health.score === 'number' ? (
+              <circle
+                cx="22"
+                cy="22"
+                r={miniRadius}
+                stroke={health.color}
+                strokeWidth={miniStroke}
+                strokeDasharray={miniCircumference}
+                strokeDashoffset={miniOffset}
+                strokeLinecap="round"
+                fill="transparent"
+              />
+            ) : (
+              <circle
+                cx="22"
+                cy="22"
+                r={miniRadius}
+                stroke="#64748B"
+                strokeWidth={miniStroke}
+                strokeDasharray="4 4"
+                fill="transparent"
+                className="opacity-40"
+              />
+            )}
           </svg>
           <span
-            className="absolute inset-0 flex items-center justify-center text-xs font-extrabold font-display leading-none"
-            style={{ color: health.color }}
+            className="absolute inset-0 flex items-center justify-center text-[10px] font-extrabold font-display leading-none"
+            style={{ color: health.hasData && typeof health.score === 'number' ? health.color : '#64748B' }}
           >
-            {health.score}
+            {health.hasData && typeof health.score === 'number' ? health.score : '—'}
           </span>
         </div>
 
@@ -420,12 +542,14 @@ export const FinancialHealthCompactCard: React.FC<FinancialHealthCompactCardProp
             </h4>
           </div>
           <p className={`text-[11px] truncate ${theme.isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            {health.strongestFactor.name} is strong · Tap for breakdown
+            {health.hasData
+              ? `${health.strongestFactor.name} is strong · Tap for breakdown`
+              : 'No transactions noted yet · Tap to view guide'}
           </p>
         </div>
       </div>
 
-      {/* Right chevron pill */}
+      {/* Right status pill */}
       <div
         style={{
           backgroundColor: health.bgColor,
@@ -434,7 +558,9 @@ export const FinancialHealthCompactCard: React.FC<FinancialHealthCompactCardProp
         }}
         className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border shrink-0 shadow-2xs"
       >
-        <span>{health.score}/100</span>
+        <span>
+          {health.hasData && typeof health.score === 'number' ? `${health.score}/100` : 'Unrated'}
+        </span>
         <ArrowRight className="w-3.5 h-3.5" />
       </div>
     </div>

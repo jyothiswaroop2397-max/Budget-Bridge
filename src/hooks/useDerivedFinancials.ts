@@ -1,6 +1,7 @@
 import { Dispatch, SetStateAction, useEffect, useMemo } from 'react';
 import { AppState, BudgetContext, Category } from '../types.js';
 import { getTodayDateString } from '../utils/formatters.js';
+import { calculateFinancialHealth } from '../utils/financialHealth.js';
 
 export function useDerivedFinancials(
   state: AppState,
@@ -86,6 +87,18 @@ export function useDerivedFinancials(
 
   // Context for AI assistant queries
   const budgetContext: BudgetContext = useMemo(() => {
+    const currentSavings = (state.savingsEntries || []).reduce((sum, s) => sum + s.amount, 0);
+    const healthResult = calculateFinancialHealth({
+      transactions: state.transactions,
+      currency: state.currency,
+      monthlyCap: state.monthlyCap,
+      monthlyExpenditure,
+      dailyLimit: state.dailyLimit,
+      spentToday: spentTodayCalculated,
+      peerBalances: state.peerBalances,
+      currentSavings,
+    });
+
     return {
       monthlyCap: state.monthlyCap,
       monthlyExpenditure,
@@ -116,6 +129,7 @@ export function useDerivedFinancials(
         type: t.type,
         date: new Date(t.timestamp).toLocaleDateString(),
       })),
+      financialHealth: healthResult,
     };
   }, [
     state.monthlyCap,
@@ -128,6 +142,7 @@ export function useDerivedFinancials(
     totalOwedToYou,
     totalIOwe,
     state.peerBalances,
+    state.savingsEntries,
     state.userProfile,
   ]);
 

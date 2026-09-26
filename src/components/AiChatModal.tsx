@@ -285,6 +285,7 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({
           budgetContext: {
             ...budgetContext,
             peerBalances: sessionPeers,
+            financialHealth: budgetContext?.financialHealth,
           },
           userName: displayName,
         }),

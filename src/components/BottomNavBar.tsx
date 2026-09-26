@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, BarChart2, Plus, Sparkles, PiggyBank } from 'lucide-react';
+import { Home, BarChart2, Plus, Sparkles, PiggyBank, Activity } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext.js';
 
 interface BottomNavBarProps {
@@ -48,7 +48,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
 
       <nav
         id="fixed-bottom-nav-bar"
-        className="fixed bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 p-1.5 sm:p-2 rounded-full select-none w-[90vw] max-w-[390px] sm:max-w-[430px] group isolate"
+        className="fixed bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 p-1.5 sm:p-2 rounded-full select-none w-[94vw] max-w-[430px] sm:max-w-[460px] group isolate"
         aria-label="Floating Page Navigation"
       >
         {/* LAYER 1: Liquid Refractive Glass Background & Displacement Filter */}
@@ -86,7 +86,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         />
 
         {/* INNER CONTENT WRAPPER: Guaranteed high-contrast touch targets & crisp icons with balanced distribution */}
-        <div className="relative flex items-center justify-between w-full px-2 sm:px-3">
+        <div className="relative flex items-center justify-between w-full px-1.5 sm:px-2.5">
           {/* 1. Tab 0: Dashboard (Home) */}
           <button
             id="bottom-nav-dashboard-btn"
@@ -95,13 +95,13 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             aria-label="Dashboard"
             className={`relative transition-all duration-200 flex items-center justify-center cursor-pointer ${
               currentPage === 0 && !isAiChatOpen
-                ? 'w-11 h-11 rounded-full bg-slate-900 text-white shadow-md shadow-slate-900/30 font-bold'
+                ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-900 text-white shadow-md shadow-slate-900/30 font-bold'
                 : theme.isDark
-                ? 'w-11 h-11 rounded-full text-slate-100 hover:text-white hover:bg-white/10 active:scale-95'
-                : 'w-11 h-11 rounded-full text-slate-800 hover:text-slate-950 hover:bg-black/5 active:scale-95'
+                ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-100 hover:text-white hover:bg-white/10 active:scale-95'
+                : 'w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-800 hover:text-slate-950 hover:bg-black/5 active:scale-95'
             }`}
           >
-            <Home className={`w-5 h-5 ${currentPage === 0 && !isAiChatOpen ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
+            <Home className={`w-4.5 h-4.5 sm:w-5 sm:h-5 ${currentPage === 0 && !isAiChatOpen ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
           </button>
 
           {/* 2. Tab 1: Analytics (List / Charts) */}
@@ -112,13 +112,13 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             aria-label="Analytics"
             className={`relative transition-all duration-200 flex items-center justify-center cursor-pointer ${
               currentPage === 1 && !isAiChatOpen
-                ? 'w-11 h-11 rounded-full bg-slate-900 text-white shadow-md shadow-slate-900/30 font-bold'
+                ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-900 text-white shadow-md shadow-slate-900/30 font-bold'
                 : theme.isDark
-                ? 'w-11 h-11 rounded-full text-slate-100 hover:text-white hover:bg-white/10 active:scale-95'
-                : 'w-11 h-11 rounded-full text-slate-800 hover:text-slate-950 hover:bg-black/5 active:scale-95'
+                ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-100 hover:text-white hover:bg-white/10 active:scale-95'
+                : 'w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-800 hover:text-slate-950 hover:bg-black/5 active:scale-95'
             }`}
           >
-            <BarChart2 className={`w-5 h-5 ${currentPage === 1 && !isAiChatOpen ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
+            <BarChart2 className={`w-4.5 h-4.5 sm:w-5 sm:h-5 ${currentPage === 1 && !isAiChatOpen ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
           </button>
 
           {/* 3. Tab 3: Savings & Assets */}
@@ -129,29 +129,46 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             aria-label="Savings"
             className={`relative transition-all duration-200 flex items-center justify-center cursor-pointer ${
               currentPage === 3 && !isAiChatOpen
-                ? 'w-11 h-11 rounded-full bg-slate-900 text-white shadow-md shadow-slate-900/30 font-bold'
+                ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-900 text-white shadow-md shadow-slate-900/30 font-bold'
                 : theme.isDark
-                ? 'w-11 h-11 rounded-full text-slate-100 hover:text-white hover:bg-white/10 active:scale-95'
-                : 'w-11 h-11 rounded-full text-slate-800 hover:text-slate-950 hover:bg-black/5 active:scale-95'
+                ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-100 hover:text-white hover:bg-white/10 active:scale-95'
+                : 'w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-800 hover:text-slate-950 hover:bg-black/5 active:scale-95'
             }`}
           >
-            <PiggyBank className={`w-5 h-5 ${currentPage === 3 && !isAiChatOpen ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
+            <PiggyBank className={`w-4.5 h-4.5 sm:w-5 sm:h-5 ${currentPage === 3 && !isAiChatOpen ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
           </button>
 
-          {/* 4. Center Action Button: Dynamic Theme Gradient pill button */}
+          {/* 4. Tab 4: Financial Score / Health (Directly beside Savings & Assets) */}
+          <button
+            id="bottom-nav-financial-score-btn"
+            onClick={() => onNavigateToPage(4)}
+            title="Page 5: Financial Health Score"
+            aria-label="Financial Score"
+            className={`relative transition-all duration-200 flex items-center justify-center cursor-pointer ${
+              currentPage === 4 && !isAiChatOpen
+                ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-900 text-white shadow-md shadow-slate-900/30 font-bold'
+                : theme.isDark
+                ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-100 hover:text-white hover:bg-white/10 active:scale-95'
+                : 'w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-800 hover:text-slate-950 hover:bg-black/5 active:scale-95'
+            }`}
+          >
+            <Activity className={`w-4.5 h-4.5 sm:w-5 sm:h-5 ${currentPage === 4 && !isAiChatOpen ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
+          </button>
+
+          {/* 5. Add New Expense (2nd to right corner) */}
           {onOpenAdd && (
             <button
               id="bottom-nav-center-add-btn"
               onClick={onOpenAdd}
               title="Add New Expense"
               aria-label="Add Expense"
-              className={`w-12 h-12 rounded-full ${theme.accentBtnBg} ${theme.accentBtnText} flex items-center justify-center font-black shadow-lg ${theme.accentShadow} hover:scale-105 active:scale-95 transition-all mx-0.5 group border border-white/80 cursor-pointer`}
+              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full ${theme.accentBtnBg} ${theme.accentBtnText} flex items-center justify-center font-black shadow-lg ${theme.accentShadow} hover:scale-105 active:scale-95 transition-all mx-0.5 group border border-white/80 cursor-pointer`}
             >
-              <Plus className="w-6 h-6 stroke-[3] transition-transform group-hover:rotate-90 duration-300" />
+              <Plus className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[3] transition-transform group-hover:rotate-90 duration-300" />
             </button>
           )}
 
-          {/* 5. AI Chat Copilot (Sparkles motif matching brand) */}
+          {/* 6. AI Chat Copilot (Far right corner) */}
           {onToggleAiChat && (
             <button
               id="bottom-nav-ai-chat-btn"
@@ -160,15 +177,15 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
               aria-label="AI Copilot"
               className={`relative transition-all duration-200 flex items-center justify-center cursor-pointer ${
                 isAiChatOpen
-                  ? 'w-11 h-11 rounded-full bg-slate-900 text-white shadow-md shadow-slate-900/30 font-bold ring-2 ring-emerald-400/50'
+                  ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-900 text-white shadow-md shadow-slate-900/30 font-bold ring-2 ring-emerald-400/50'
                   : theme.isDark
-                  ? 'w-11 h-11 rounded-full text-slate-100 hover:text-emerald-300 hover:bg-white/10 active:scale-95'
-                  : 'w-11 h-11 rounded-full text-slate-800 hover:text-emerald-600 hover:bg-black/5 active:scale-95'
+                  ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-100 hover:text-emerald-300 hover:bg-white/10 active:scale-95'
+                  : 'w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-800 hover:text-emerald-600 hover:bg-black/5 active:scale-95'
               }`}
             >
               {/* Subtle neon emerald/cyan indicator dot */}
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
-              <Sparkles className={`w-5 h-5 ${isAiChatOpen ? 'stroke-[2.5] text-emerald-300' : 'stroke-[2]'}`} />
+              <Sparkles className={`w-4.5 h-4.5 sm:w-5 sm:h-5 ${isAiChatOpen ? 'stroke-[2.5] text-emerald-300' : 'stroke-[2]'}`} />
             </button>
           )}
         </div>

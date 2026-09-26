@@ -20,6 +20,7 @@ import {
 } from '../src/utils/peerLedger.js';
 import { analyzeFinancialQueryLocal } from '../src/utils/financialQueryHelper.js';
 import { BudgetContext, ChatProposal, PeerBalance } from '../src/types.js';
+import { calculateFinancialHealth } from '../src/utils/financialHealth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -79,6 +80,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     recentTransactions: Array.isArray(budgetContext?.recentTransactions)
       ? budgetContext.recentTransactions
       : [],
+    financialHealth: budgetContext?.financialHealth || calculateFinancialHealth({
+      transactions: (budgetContext?.recentTransactions as any) || [],
+      currency: budgetContext?.currency || 'INR',
+      monthlyCap: Number(budgetContext?.monthlyCap) || 0,
+      monthlyExpenditure: Number(budgetContext?.monthlyExpenditure) || 0,
+      dailyLimit: Number(budgetContext?.dailyLimit) || 0,
+      spentToday: Number(budgetContext?.spentToday) || 0,
+      peerBalances: Array.isArray(budgetContext?.peerBalances) ? budgetContext.peerBalances : [],
+      currentSavings: 0,
+    }),
   };
 
   const currentPeers: PeerBalance[] = Array.isArray(safeContext.peerBalances)
@@ -200,31 +211,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // Case (c): Budget or Spending Question (e.g. "What is my total monthly expenditure?", "What's my avg weekly expenditure?")
+  // Case (c): Budget or Financial Health Question (e.g. "What is my total monthly expenditure?", "Why is my financial health low?", "How do I improve my score?")
   // Returns calculated figures conversationally. Never touches transactions table.
-  if (intentResult.category === 'BUDGET_QUERY') {
+  if (intentResult.category === 'BUDGET_QUERY' || intentResult.category === 'FINANCIAL_HEALTH_QUERY') {
     const localQueryResult = analyzeFinancialQueryLocal(promptText, safeContext);
 
     if (localQueryResult.isQuery && localQueryResult.reply) {
       return res.status(200).json({
         success: true,
         mode: 'TEXT_QUERY',
-        intentCategory: 'BUDGET_QUERY',
+        intentCategory: intentResult.category,
         reply: formatReplyWithUser(localQueryResult.reply, displayName),
         queryDetails: {
-          queryType: localQueryResult.queryType || 'GENERAL_FINANCE',
+          queryType: localQueryResult.queryType || (intentResult.category === 'FINANCIAL_HEALTH_QUERY' ? 'FINANCIAL_HEALTH_OVERVIEW' : 'GENERAL_FINANCE'),
           category: localQueryResult.category || undefined,
-          calculatedAmount: localQueryResult.calculatedAmount ?? safeContext.monthlyExpenditure,
+          calculatedAmount: localQueryResult.calculatedAmount ?? safeContext.financialHealth?.score ?? safeContext.monthlyExpenditure,
         },
         engine: 'deterministic',
         note: 'Financial query answered accurately from budget data',
       });
     }
 
-    // If no specific rule triggered, try Gemini with budget and peer ledger context
+    // If no specific rule triggered, try Gemini with budget, financial health, and peer ledger context
     const ai = getGeminiClient();
     if (ai) {
       try {
+        const fh = safeContext.financialHealth;
+        const fhFactorsText = (fh?.factors || [])
+          .map((f) => `  • ${f.name}: ${f.score}/${f.maxScore} pts (${f.status}) — ${f.description}`)
+          .join('\n');
+
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: [
@@ -232,7 +248,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               role: 'user',
               parts: [
                 {
-                  text: `You are the personal finance assistant for Budget Bridge. You track expenses and manage peer lending/borrowing ledgers.
+                  text: `You are the personal finance assistant for Budget Bridge. You track expenses, manage peer lending/borrowing ledgers, and provide real-time Financial Health insights.
 Addressing user: "${displayName}".
 Current peer balances and ledgers: ${JSON.stringify(currentPeers)}
 User's budget data:
@@ -245,6 +261,29 @@ User's budget data:
 - Total User Owes: ${safeContext.totalIOwe}
 - Category Breakdown: ${JSON.stringify(safeContext.categoryBreakdown)}
 - Recent Transactions: ${JSON.stringify(safeContext.recentTransactions?.slice(0, 5) || [])}
+
+User's Financial Health & Biometric Score Assessment:
+- Overall Score: ${fh?.score !== null && fh?.score !== undefined ? `${fh.score}/100` : 'Unrated (no transaction data yet)'}
+- Status Label: ${fh?.label || 'Unrated'}
+- Has Activity Data: ${fh?.hasData ? 'Yes' : 'No'}
+- Top Strength: ${fh?.strongestFactor?.name || 'N/A'} (${fh?.strongestFactor?.explanation || 'N/A'})
+- Growth Opportunity / Weakest Factor: ${fh?.weakestFactor?.name || 'N/A'} (${fh?.weakestFactor?.explanation || 'N/A'})
+- Actionable Recommendation: ${fh?.actionableSuggestion || 'N/A'}
+- 5 Health Factors Breakdown:
+${fhFactorsText || '  (No factor breakdown available)'}
+- Key Health Metrics:
+  • Emergency Buffer: ${fh?.metrics?.monthsBufferCovered ?? 0} months covered (${safeContext.currency} ${(fh?.metrics?.savingsBuffer ?? 0).toLocaleString()})
+  • Savings Rate: ${Math.round((fh?.metrics?.savingsRate ?? 0) * 100)}%
+  • Total Owed to User: ${safeContext.currency} ${(fh?.metrics?.totalOwedToYou ?? safeContext.totalOwedToYou).toLocaleString()}
+  • Total User Owes: ${safeContext.currency} ${(fh?.metrics?.totalIOwe ?? safeContext.totalIOwe).toLocaleString()}
+
+BEHAVIOR RULES FOR FINANCIAL HEALTH & SCORE QUESTIONS:
+- If the user asks about their financial health, score, or rating (e.g. "how is my financial health", "why is my score low", "how to improve my score", "what is hurting my score"):
+  • State their actual score (e.g. "${fh?.score !== null && fh?.score !== undefined ? `${fh.score}/100 (${fh.label})` : 'Unrated'}") and status label.
+  • Explain why their score is at this level by citing specific factors from the breakdown above (e.g., daily limit overrun, high peer debt, or low emergency buffer).
+  • If the user asks how to improve, provide concrete, personalized steps addressing their specific weakest factors.
+  • If the score is Unrated, explain that they need to log transactions to activate their score.
+  • Never invent placeholder figures; only use the real figures provided in context.
 
 BEHAVIOR RULES FOR PEER LEDGERS:
 - If asking to see a person's ledger (e.g. "show Rahul", "what does Rahul owe", "Rahul's history"), respond ONLY in this exact format:
@@ -275,7 +314,7 @@ User query: "${promptText}"`,
           return res.status(200).json({
             success: true,
             mode: 'TEXT_QUERY',
-            intentCategory: 'BUDGET_QUERY',
+            intentCategory: intentResult.category,
             reply: formatReplyWithUser(geminiReply, displayName),
             engine: 'gemini',
           });
@@ -288,16 +327,18 @@ User query: "${promptText}"`,
     return res.status(200).json({
       success: true,
       mode: 'TEXT_QUERY',
-      intentCategory: 'BUDGET_QUERY',
+      intentCategory: intentResult.category,
       reply: formatReplyWithUser(
         localQueryResult.reply ||
-          `Your current monthly expenditure is ${safeContext.currency} ${safeContext.monthlyExpenditure.toLocaleString()} (Cap: ${safeContext.currency} ${safeContext.monthlyCap.toLocaleString()}). Today's spend: ${safeContext.currency} ${safeContext.spentToday.toLocaleString()}.`,
+          (safeContext.financialHealth?.hasData && safeContext.financialHealth.score !== null
+            ? `Your Financial Health Score is ${safeContext.financialHealth.score}/100 (${safeContext.financialHealth.label}). Monthly spend: ${safeContext.currency} ${safeContext.monthlyExpenditure.toLocaleString()} (Cap: ${safeContext.currency} ${safeContext.monthlyCap.toLocaleString()}). Today's spend: ${safeContext.currency} ${safeContext.spentToday.toLocaleString()}.`
+            : `Your current monthly expenditure is ${safeContext.currency} ${safeContext.monthlyExpenditure.toLocaleString()} (Cap: ${safeContext.currency} ${safeContext.monthlyCap.toLocaleString()}). Today's spend: ${safeContext.currency} ${safeContext.spentToday.toLocaleString()}.`),
         displayName
       ),
       queryDetails: {
-        queryType: localQueryResult.queryType || 'GENERAL_FINANCE',
+        queryType: localQueryResult.queryType || (intentResult.category === 'FINANCIAL_HEALTH_QUERY' ? 'FINANCIAL_HEALTH_OVERVIEW' : 'GENERAL_FINANCE'),
         category: localQueryResult.category || undefined,
-        calculatedAmount: localQueryResult.calculatedAmount ?? safeContext.monthlyExpenditure,
+        calculatedAmount: localQueryResult.calculatedAmount ?? safeContext.financialHealth?.score ?? safeContext.monthlyExpenditure,
       },
       engine: 'fallback',
       note: 'Financial query answered without writing transactions',

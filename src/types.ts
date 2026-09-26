@@ -68,6 +68,47 @@ export interface PeerBalance {
   totalReceived?: number;
 }
 
+export interface BudgetHealthFactorContext {
+  id: string;
+  name: string;
+  score: number;
+  maxScore: number;
+  status: string;
+  description: string;
+  visible?: boolean;
+}
+
+export interface BudgetFinancialHealthContext {
+  score: number | null;
+  label: string;
+  hasData: boolean;
+  factors: BudgetHealthFactorContext[];
+  strongestFactor?: {
+    name: string;
+    explanation: string;
+  };
+  weakestFactor?: {
+    name: string;
+    explanation: string;
+  };
+  actionableSuggestion?: string;
+  emptyStateMessage?: string;
+  metrics?: {
+    totalIncome?: number;
+    totalExpenses?: number;
+    monthlyExpenses?: number;
+    monthlyCap?: number;
+    dailyLimit?: number;
+    spentToday?: number;
+    savingsBuffer?: number;
+    monthsBufferCovered?: number;
+    savingsRate?: number;
+    totalOwedToYou?: number;
+    totalIOwe?: number;
+    netPeerBalance?: number;
+  };
+}
+
 export interface BudgetContext {
   monthlyCap: number;
   monthlyExpenditure: number;
@@ -88,13 +129,15 @@ export interface BudgetContext {
     type: string;
     date: string;
   }>;
+  financialHealth?: BudgetFinancialHealthContext;
 }
 
 export type MessageIntentCategory =
-  | 'SPEND_TRANSACTION' // (a) spend / expense / income statement (must have amount > 0 AND spend verb/noun)
-  | 'DEBT_STATEMENT'    // (b) debt statement ("X owes me Y", "I owe X Y" with amount > 0)
-  | 'BUDGET_QUERY'      // (c) question about budget/spending/balances data
-  | 'GENERAL_CHAT';     // (d) greetings, small talk, casual messages, unclear input
+  | 'SPEND_TRANSACTION'     // (a) spend / expense / income statement (must have amount > 0 AND spend verb/noun)
+  | 'DEBT_STATEMENT'        // (b) debt statement ("X owes me Y", "I owe X Y" with amount > 0)
+  | 'BUDGET_QUERY'          // (c) question about budget/spending/balances data
+  | 'FINANCIAL_HEALTH_QUERY'// (d) questions about financial health score, breakdown, factors, improvements
+  | 'GENERAL_CHAT';         // (e) greetings, small talk, casual messages, unclear input
 
 export type ProposalStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED';
 

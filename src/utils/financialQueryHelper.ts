@@ -1,4 +1,5 @@
 import { BudgetContext } from '../types.js';
+import { calculateFinancialHealth, FinancialHealthResult } from './financialHealth.js';
 
 export interface LocalFinancialAnswer {
   isQuery: boolean;
@@ -46,8 +47,164 @@ export function analyzeFinancialQueryLocal(
   const dailyLimit = typeof context.dailyLimit === 'number' ? context.dailyLimit : (Number(context.dailyLimit) || 0);
 
   // ═════════════════════════════════════════════════════════════════════
-  // 1. WEEKLY / AVERAGE WEEKLY EXPENDITURE QUERIES
+  // 0. FINANCIAL HEALTH / FINANCIAL SCORE QUERIES
   // ═════════════════════════════════════════════════════════════════════
+  const isFinancialHealthQuery =
+    normalized.includes('financial health') ||
+    normalized.includes('financial score') ||
+    normalized.includes('health score') ||
+    normalized.includes('my score') ||
+    normalized.includes('financial rating') ||
+    normalized.includes('financial vitals') ||
+    normalized.includes('financial condition') ||
+    normalized.includes('score breakdown') ||
+    normalized.includes('health breakdown') ||
+    normalized.includes('emergency buffer') ||
+    ((normalized.includes('score') || normalized.includes('health') || normalized.includes('rating')) &&
+      (normalized.includes('why') ||
+        normalized.includes('how') ||
+        normalized.includes('improve') ||
+        normalized.includes('what') ||
+        normalized.includes('low') ||
+        normalized.includes('affect') ||
+        normalized.includes('hurt') ||
+        normalized.includes('boost') ||
+        normalized.includes('raise') ||
+        normalized.includes('breakdown')));
+
+  if (isFinancialHealthQuery) {
+    // Obtain health breakdown from context or compute dynamically
+    const health: FinancialHealthResult =
+      (context.financialHealth as FinancialHealthResult) ||
+      calculateFinancialHealth({
+        transactions: (context.recentTransactions as any) || [],
+        currency,
+        monthlyCap,
+        monthlyExpenditure: monthlyAmt,
+        dailyLimit,
+        spentToday,
+        peerBalances: context.peerBalances || [],
+        currentSavings: 0,
+      });
+
+    // 0A. Empty / Unrated State
+    if (!health.hasData || health.score === null) {
+      return {
+        isQuery: true,
+        queryType: 'FINANCIAL_HEALTH_UNRATED',
+        calculatedAmount: null,
+        reply:
+          `Your Financial Health is currently **Unrated** because no transaction activity has been recorded yet. ` +
+          `Once you begin recording transactions, your score evaluates 5 core dimensions:\n` +
+          `• Monthly Budget Adherence (25 pts)\n` +
+          `• Daily Limit Discipline (15 pts)\n` +
+          `• Cashflow & Savings Rate (25 pts)\n` +
+          `• Debt & Peer Balances (15 pts)\n` +
+          `• Emergency Savings Buffer (20 pts)\n\n` +
+          `💡 *Try logging an expense like "Spent 250 on lunch" to activate your live score!*`,
+      };
+    }
+
+    const isWhyLowQuery =
+      normalized.includes('why') ||
+      normalized.includes('low') ||
+      normalized.includes('hurt') ||
+      normalized.includes('affect') ||
+      normalized.includes('pulling') ||
+      normalized.includes('down') ||
+      normalized.includes('bad') ||
+      normalized.includes('drop');
+
+    const isImproveQuery =
+      normalized.includes('improve') ||
+      normalized.includes('boost') ||
+      normalized.includes('raise') ||
+      normalized.includes('better') ||
+      normalized.includes('increase') ||
+      normalized.includes('grow') ||
+      normalized.includes('tip') ||
+      normalized.includes('advice');
+
+    // 0B. "Why is my financial health low?" / "What's hurting my score?"
+    if (isWhyLowQuery) {
+      // Find factors that scored less than full marks
+      const underperformingFactors = health.factors
+        .filter((f) => f.visible && f.score < f.maxScore)
+        .sort((a, b) => a.score / a.maxScore - b.score / b.maxScore);
+
+      const weakList = underperformingFactors.length > 0
+        ? underperformingFactors
+            .map(
+              (f) =>
+                `• **${f.name}** (${f.score}/${f.maxScore} pts, status: *${f.status}*): ${f.description}`
+            )
+            .join('\n')
+        : `• All factors are currently meeting benchmark thresholds!`;
+
+      return {
+        isQuery: true,
+        queryType: 'FINANCIAL_HEALTH_DIAGNOSIS',
+        calculatedAmount: health.score,
+        reply:
+          `Your Financial Health Score is currently **${health.score}/100 (${health.label})**.\n\n` +
+          `📉 **What is affecting your score**:\n${weakList}\n\n` +
+          `💪 **Top Strength**: ${health.strongestFactor.name} (${health.strongestFactor.explanation})\n` +
+          `💡 **Action Step**: ${health.actionableSuggestion}`,
+      };
+    }
+
+    // 0C. "How do I improve my financial score?" / Actionable Advice
+    if (isImproveQuery) {
+      const topActionSteps: string[] = [];
+
+      for (const f of health.factors) {
+        if (f.id === 'daily-discipline' && spentToday > dailyLimit && dailyLimit > 0) {
+          topActionSteps.push(`• **Pace Today's Spending**: You've spent ${currency} ${spentToday.toLocaleString()} today against your ${currency} ${dailyLimit.toLocaleString()} limit.`);
+        } else if (f.id === 'monthly-budget' && monthlyAmt > monthlyCap && monthlyCap > 0) {
+          topActionSteps.push(`• **Cool Down Monthly Run-Rate**: You're at ${currency} ${monthlyAmt.toLocaleString()} of your ${currency} ${monthlyCap.toLocaleString()} monthly cap.`);
+        } else if (f.id === 'debt-exposure' && (context.totalIOwe || 0) > (context.totalOwedToYou || 0)) {
+          topActionSteps.push(`• **Settle Outstanding Debts**: You currently owe ${currency} ${(context.totalIOwe || 0).toLocaleString()} to friends; settling lowers debt exposure.`);
+        } else if (f.id === 'emergency-buffer' && (health.metrics?.monthsBufferCovered ?? 0) < 3) {
+          topActionSteps.push(`• **Build Savings Runway**: Strive for 3+ months of expenses in liquid savings (currently at ${health.metrics?.monthsBufferCovered ?? 0} months).`);
+        } else if (f.id === 'cashflow-ratio' && (health.metrics?.savingsRate ?? 0) < 0.2) {
+          topActionSteps.push(`• **Boost Retained Savings**: Aim to save at least 20% of monthly incoming cashflow.`);
+        }
+      }
+
+      if (topActionSteps.length === 0) {
+        topActionSteps.push(`• Continue keeping daily expenditures below ${currency} ${dailyLimit.toLocaleString()}`);
+        topActionSteps.push(`• Maintain your current monthly cap of ${currency} ${monthlyCap.toLocaleString()}`);
+      }
+
+      return {
+        isQuery: true,
+        queryType: 'FINANCIAL_HEALTH_IMPROVEMENT',
+        calculatedAmount: health.score,
+        reply:
+          `To improve your **Financial Score (currently ${health.score}/100 · ${health.label})**, focus on these high-impact priorities:\n\n` +
+          topActionSteps.join('\n') +
+          `\n\n💡 **Top Recommendation**: ${health.actionableSuggestion}\n` +
+          `💪 **Current Pillar of Strength**: ${health.strongestFactor.name} (${health.strongestFactor.explanation})`,
+      };
+    }
+
+    // 0D. General Financial Health Overview / Breakdown
+    const factorList = health.factors
+      .filter((f) => f.visible)
+      .map((f) => `• **${f.name}**: ${f.score}/${f.maxScore} pts (*${f.status}*) — ${f.description}`)
+      .join('\n');
+
+    return {
+      isQuery: true,
+      queryType: 'FINANCIAL_HEALTH_OVERVIEW',
+      calculatedAmount: health.score,
+      reply:
+        `Your Financial Health Score is **${health.score}/100 (${health.label})**.\n\n` +
+        `📊 **Factor Breakdown (100 pts total)**:\n${factorList}\n\n` +
+        `💪 **Top Strength**: ${health.strongestFactor.name} (${health.strongestFactor.explanation})\n` +
+        `💡 **Key Advice**: ${health.actionableSuggestion}`,
+    };
+  }
   const isWeeklyQuery =
     normalized.includes('weekly') ||
     normalized.includes('per week') ||

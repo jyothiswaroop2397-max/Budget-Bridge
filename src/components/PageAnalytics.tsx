@@ -24,7 +24,6 @@ import {
 import { Category, Transaction } from '../types.js';
 import { formatCurrency, formatDate } from '../utils/formatters.js';
 import { useTheme } from '../context/ThemeContext.js';
-import { FinancialHealthCard } from './FinancialHealthCard.js';
 import { PeerBalance } from '../types.js';
 
 interface PageAnalyticsProps {
@@ -32,6 +31,8 @@ interface PageAnalyticsProps {
   currency: string;
   monthlyCap?: number;
   monthlyExpenditure?: number;
+  dailyLimit?: number;
+  spentToday?: number;
   peerBalances?: PeerBalance[];
   savingsEntries?: import('../types/savings.js').SavingsEntry[];
   onDeleteTransaction: (id: string) => void;
@@ -69,10 +70,13 @@ export const PageAnalytics: React.FC<PageAnalyticsProps> = ({
   currency,
   monthlyCap = 0,
   monthlyExpenditure = 0,
+  dailyLimit = 0,
+  spentToday = 0,
   peerBalances = [],
   savingsEntries = [],
   onDeleteTransaction,
   onUpdateTransaction,
+  onNavigateToPage,
   onGoBack,
   selectedCategory: propCategory,
   onSelectCategory,
@@ -217,18 +221,6 @@ export const PageAnalytics: React.FC<PageAnalyticsProps> = ({
             </p>
           </div>
         </div>
-
-        {/* FINANCIAL HEALTH SCORE CARD (FULL VERSION) */}
-        <FinancialHealthCard
-          data={{
-            transactions,
-            currency,
-            monthlyCap,
-            monthlyExpenditure,
-            peerBalances,
-            currentSavings: savingsEntries.reduce((sum, s) => sum + s.amount, 0),
-          }}
-        />
 
         {/* SEARCH & FILTERS BAR */}
         <div className="space-y-2 shrink-0">

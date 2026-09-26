@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Bell,
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
@@ -168,7 +167,7 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
           </button>
         </div>
 
-        {/* Right: Silent SMS Indicator, Notification Bell & Quick Add */}
+        {/* Right: Silent SMS Indicator & Quick Settings */}
         <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0 relative">
           {silentVerificationActive && (
             <div
@@ -191,29 +190,7 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
             </div>
           )}
 
-          {/* Notification Bell matching screenshot */}
-          <div className="relative">
-            <button
-              id="notification-bell-btn"
-              style={{
-                backgroundColor: theme.isDark ? theme.bgCard : 'rgba(255,255,255,0.9)',
-                borderColor: theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(226,232,240,0.9)',
-              }}
-              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full border flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95 ${
-                theme.isDark ? 'text-slate-300 hover:text-white hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-              }`}
-              title="Notifications"
-              aria-label="Notifications"
-            >
-              <Bell className="w-4 h-4" />
-            </button>
-            <span
-              style={{ backgroundColor: theme.accentColor }}
-              className="absolute top-0 right-0 w-2 h-2 rounded-full ring-2 ring-white"
-            />
-          </div>
-
-          {/* Settings Button beside Notification Bell */}
+          {/* Settings Button */}
           <button
             id="nav-header-settings-btn"
             type="button"

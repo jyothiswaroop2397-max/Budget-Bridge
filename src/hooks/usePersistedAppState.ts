@@ -18,7 +18,7 @@ export const DEFAULT_STATE: AppState = {
   currency: 'INR',
   transactions: INITIAL_DEMO_TRANSACTIONS,
   peerBalances: INITIAL_DEMO_PEER_BALANCES,
-  savingsEntries: INITIAL_DEMO_SAVINGS_ENTRIES,
+  savingsEntries: [],
   lastActiveDate: getTodayDateString(),
   smsPermissionGranted: true,
   silentVerificationActive: true,
@@ -87,7 +87,7 @@ export const normalizeLoadedState = (savedJson: string | null): AppState => {
       },
       savingsEntries: Array.isArray(parsed.savingsEntries)
         ? parsed.savingsEntries
-        : INITIAL_DEMO_SAVINGS_ENTRIES,
+        : [],
     };
   } catch {
     return DEFAULT_STATE;

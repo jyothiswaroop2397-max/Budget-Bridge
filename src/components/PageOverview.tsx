@@ -38,6 +38,7 @@ import { formatCurrency, formatDate, CATEGORY_THEMES } from '../utils/formatters
 import { useTheme } from '../context/ThemeContext.js';
 import { useToast } from '../hooks/useToast.js';
 import { FinancialHealthCompactCard } from './FinancialHealthCard.js';
+import { calculateFinancialHealth } from '../utils/financialHealth.js';
 import {
   parseTransactionHeuristic,
   parsePeerBalanceHeuristic,
@@ -315,6 +316,16 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
               totalOwedToYou,
               totalIOwe,
               peerBalances,
+              financialHealth: calculateFinancialHealth({
+                transactions,
+                currency,
+                monthlyCap,
+                monthlyExpenditure,
+                dailyLimit,
+                spentToday,
+                peerBalances,
+                currentSavings: (savingsEntries || []).reduce((sum, s) => sum + s.amount, 0),
+              }),
             },
           }),
         });
@@ -712,17 +723,19 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
         </div>
       </div>
 
-      {/* FINANCIAL HEALTH SCORE COMPACT WIDGET (Navigates to Full Card on Analytics) */}
+      {/* FINANCIAL HEALTH SCORE COMPACT WIDGET (Taps to dedicated Financial Score page) */}
       <FinancialHealthCompactCard
         data={{
           transactions,
           currency,
           monthlyCap,
           monthlyExpenditure,
+          dailyLimit,
+          spentToday,
           peerBalances,
-          currentSavings: savingsEntries.reduce((sum, s) => sum + s.amount, 0),
+          currentSavings: (savingsEntries || []).reduce((sum, s) => sum + s.amount, 0),
         }}
-        onClick={() => onNavigateToPage(1)}
+        onClick={() => onNavigateToPage(4)}
       />
 
       {/* 2. PEER BALANCES SECTION: "Owe Me" & "I Owe" (Always beside each other in 2 columns) */}

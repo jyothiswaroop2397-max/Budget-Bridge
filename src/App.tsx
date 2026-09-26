@@ -5,6 +5,7 @@ import { PageOverview } from './components/PageOverview.js';
 import { PageAnalytics } from './components/PageAnalytics.js';
 import { PageSettings } from './components/PageSettings.js';
 import { PageSavings } from './components/PageSavings.js';
+import { PageFinancialScore } from './components/PageFinancialScore.js';
 import { ManualAddModal } from './components/ManualAddModal.js';
 import { AddPeerBalanceModal } from './components/AddPeerBalanceModal.js';
 import { SettleUpModal } from './components/SettleUpModal.js';
@@ -330,6 +331,8 @@ export const App: React.FC = () => {
             currency={state.currency}
             monthlyCap={state.monthlyCap}
             monthlyExpenditure={monthlyExpenditure}
+            dailyLimit={state.dailyLimit}
+            spentToday={spentTodayCalculated}
             peerBalances={state.peerBalances}
             savingsEntries={state.savingsEntries}
             selectedCategory={selectedAnalyticsCategory}
@@ -369,6 +372,22 @@ export const App: React.FC = () => {
             onAddSavingsEntry={handleAddSavingsEntry}
             onUpdateSavingsEntry={handleUpdateSavingsEntry}
             onDeleteSavingsEntry={handleDeleteSavingsEntry}
+            onNavigateToPage={handleNavigatePage}
+            onGoBack={handleGoBack}
+          />
+        )}
+
+        {/* PAGE 5: FINANCIAL HEALTH SCORE & EVALUATION */}
+        {currentPage === 4 && (
+          <PageFinancialScore
+            transactions={state.transactions}
+            currency={state.currency}
+            monthlyCap={state.monthlyCap}
+            monthlyExpenditure={monthlyExpenditure}
+            dailyLimit={state.dailyLimit}
+            spentToday={spentTodayCalculated}
+            peerBalances={state.peerBalances}
+            savingsEntries={state.savingsEntries}
             onNavigateToPage={handleNavigatePage}
             onGoBack={handleGoBack}
           />
