@@ -13,13 +13,16 @@ import {
   Camera,
   Link,
   ArrowLeft,
+  FileDown,
+  Download,
 } from 'lucide-react';
 import { formatCurrency, CURRENCIES } from '../utils/formatters.js';
 import { BudgetBridgeAppIcon } from './BudgetBridgeAppIcon.js';
 import { useTheme } from '../context/ThemeContext.js';
 import { useToast } from '../hooks/useToast.js';
-import { UserProfile } from '../types.js';
+import { UserProfile, Transaction, PeerBalance } from '../types.js';
 import { getDefaultAvatar, sanitizeAvatarUrl } from '../utils/avatar.js';
+import { exportDataToCsv } from '../utils/exportToCsv.js';
 
 interface PageSettingsProps {
   monthlyCap: number;
@@ -27,6 +30,8 @@ interface PageSettingsProps {
   currency: string;
   smsPermissionGranted: boolean;
   userProfile?: UserProfile;
+  transactions?: Transaction[];
+  peerBalances?: PeerBalance[];
   onUpdateUserProfile?: (profile: UserProfile) => void;
   onOpenProfileModal?: () => void;
   onUpdateBudget: (caps: { monthlyCap: number; dailyLimit: number }) => void;
@@ -44,6 +49,8 @@ export const PageSettings: React.FC<PageSettingsProps> = ({
   currency,
   smsPermissionGranted,
   userProfile = { name: 'Guest', avatarUrl: getDefaultAvatar('Guest') },
+  transactions = [],
+  peerBalances = [],
   onUpdateUserProfile,
   onOpenProfileModal,
   onUpdateBudget,
@@ -58,6 +65,7 @@ export const PageSettings: React.FC<PageSettingsProps> = ({
   const [tempMonthlyCap, setTempMonthlyCap] = useState(monthlyCap.toString());
   const [tempDailyLimit, setTempDailyLimit] = useState(dailyLimit.toString());
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // SMS Simulation State
   const [isSimulating, setIsSimulating] = useState(false);
@@ -708,6 +716,70 @@ export const PageSettings: React.FC<PageSettingsProps> = ({
             >
               <RotateCcw className="w-3 h-3" />
               <span>Reset to Sample Data</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 7. EXPORT DATA (CSV) */}
+        <div
+          style={{
+            backgroundColor: theme.isDark ? theme.bgCard : 'rgba(255, 255, 255, 0.85)',
+            borderColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.9)',
+          }}
+          className="rounded-[24px] border p-3.5 sm:p-4 space-y-3 shadow-[0_10px_30px_rgba(0,0,0,0.04)] backdrop-blur-xl"
+        >
+          <div className="flex items-center justify-between">
+            <h2 className={`text-xs sm:text-sm font-bold flex items-center gap-2 ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
+              <FileDown className="w-4 h-4 text-emerald-500" />
+              Export Data
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+              CSV Format
+            </span>
+          </div>
+
+          <p className={`text-[11px] leading-relaxed ${theme.isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            Export your complete transaction history and peer balance ledgers into a downloadable spreadsheet file.
+            Includes dates, categories, payment types, itemized notes, and timestamps formatted with universal UTF-8 BOM encoding for Excel.
+          </p>
+
+          <div
+            style={{
+              backgroundColor: theme.isDark ? '#080C16' : 'rgba(248, 250, 252, 0.95)',
+              borderColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(226, 232, 240, 0.9)',
+            }}
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-[20px] border shadow-xs"
+          >
+            <div className="space-y-0.5 text-left">
+              <div className={`text-xs font-semibold ${theme.isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                Personal Records ({transactions.length} transactions, {peerBalances.length} peers)
+              </div>
+              <div className={`text-[10px] ${theme.isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                Single CSV file with dedicated Transactions & Peer Balances sections
+              </div>
+            </div>
+
+            <button
+              id="export-csv-btn"
+              type="button"
+              disabled={isExporting}
+              onClick={() => {
+                setIsExporting(true);
+                const result = exportDataToCsv(transactions, peerBalances);
+                if (result.success) {
+                  showToast(result.message || 'Exported CSV successfully!', 'success');
+                } else {
+                  showToast(result.message || 'No data to export yet.', 'error');
+                }
+                setTimeout(() => setIsExporting(false), 800);
+              }}
+              style={{
+                backgroundColor: theme.accentColor,
+              }}
+              className="w-full sm:w-auto px-4 py-2 rounded-full font-bold text-xs flex items-center justify-center gap-2 text-slate-950 shadow-md hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>{isExporting ? 'Exporting...' : 'Export to CSV'}</span>
             </button>
           </div>
         </div>

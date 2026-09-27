@@ -63,6 +63,72 @@ export const APP_INFO_KEYWORDS: string[] = [
   'how to track',
 ];
 
+/**
+ * Checks whether an incoming prompt is purely small talk or greeting with no informational intent.
+ * Examples: "hi", "hello", "thanks", "thank you", "ok", "cool", "great", "bye", "yo", "sup", "lol".
+ * Any message asking a question, containing "?", or having words like why/what/how/is/can/spending is NOT pure small talk.
+ */
+export function isPureSmallTalk(text: string): boolean {
+  if (!text) return true;
+  const cleaned = text.trim().toLowerCase().replace(/[!.,:;]+$/g, '').trim();
+
+  // If it has question marks or question starters, it is NOT pure small talk
+  if (cleaned.includes('?')) return false;
+
+  const words = cleaned.split(/\s+/);
+  // Pure small talk is typically short (1-3 words) and matches pure greeting/pleasantry lists
+  const purePhrases = new Set([
+    'hi',
+    'hello',
+    'hey',
+    'heyy',
+    'heyyy',
+    'good morning',
+    'good evening',
+    'good afternoon',
+    'good day',
+    'good night',
+    'good',
+    'yo',
+    'sup',
+    'howdy',
+    'hola',
+    'namaste',
+    'greetings',
+    'hiya',
+    'whatsup',
+    "what's up",
+    'whats up',
+    'thanks',
+    'thank you',
+    'thx',
+    'ok',
+    'okay',
+    'k',
+    'cool',
+    'great',
+    'awesome',
+    'nice',
+    'bye',
+    'goodbye',
+    'cya',
+    'lol',
+    'haha',
+    'hahaha',
+  ]);
+
+  if (purePhrases.has(cleaned)) {
+    return true;
+  }
+
+  // Check if every single token is a small-talk word (e.g. "hi thanks", "ok cool")
+  if (words.length <= 3 && words.every((w) => purePhrases.has(w))) {
+    return true;
+  }
+
+  return false;
+}
+
 export const SPENDING_LENDING_KEYWORDS: string[] = [
   'spent',
   'spend',
@@ -182,15 +248,31 @@ export function classifyMessageIntent(input: string): {
     normalizedForIntent.startsWith('what') ||
     normalizedForIntent.startsWith('how') ||
     normalizedForIntent.startsWith('who') ||
+    normalizedForIntent.startsWith('why') ||
+    normalizedForIntent.startsWith('when') ||
+    normalizedForIntent.startsWith('where') ||
+    normalizedForIntent.startsWith('is ') ||
+    normalizedForIntent.startsWith('are ') ||
+    normalizedForIntent.startsWith('do ') ||
+    normalizedForIntent.startsWith('does ') ||
+    normalizedForIntent.startsWith('did ') ||
+    normalizedForIntent.startsWith('can ') ||
+    normalizedForIntent.startsWith('could ') ||
+    normalizedForIntent.startsWith('should ') ||
+    normalizedForIntent.startsWith('would ') ||
     normalizedForIntent.startsWith('am i') ||
     normalizedForIntent.startsWith('is my') ||
+    normalizedForIntent.startsWith('are my') ||
     normalizedForIntent.startsWith('show') ||
     normalizedForIntent.startsWith('tell') ||
     normalizedForIntent.startsWith('give me') ||
+    normalizedForIntent.startsWith('list') ||
+    normalizedForIntent.startsWith('check') ||
     normalizedForIntent.startsWith('calculate');
 
   const hasFinancialTopic =
     normalizedForIntent.includes('expenditure') ||
+    normalizedForIntent.includes('expense') ||
     normalizedForIntent.includes('weekly') ||
     normalizedForIntent.includes('daily') ||
     normalizedForIntent.includes('monthly') ||
@@ -204,11 +286,22 @@ export function classifyMessageIntent(input: string): {
     normalizedForIntent.includes('cap') ||
     normalizedForIntent.includes('owes') ||
     normalizedForIntent.includes('owe') ||
+    normalizedForIntent.includes('lent') ||
+    normalizedForIntent.includes('borrow') ||
+    normalizedForIntent.includes('peer') ||
+    normalizedForIntent.includes('friend') ||
+    normalizedForIntent.includes('category') ||
+    normalizedForIntent.includes('categories') ||
+    normalizedForIntent.includes('money') ||
+    normalizedForIntent.includes('cash') ||
+    normalizedForIntent.includes('transaction') ||
     normalizedForIntent.includes('history') ||
     normalizedForIntent.includes('recent') ||
     normalizedForIntent.includes('breakdown') ||
     normalizedForIntent.includes('health') ||
-    normalizedForIntent.includes('score');
+    normalizedForIntent.includes('score') ||
+    normalizedForIntent.includes('saving') ||
+    normalizedForIntent.includes('savings');
 
   const isBudgetQuestion = hasQuestionWord && hasFinancialTopic;
 
@@ -220,12 +313,13 @@ export function classifyMessageIntent(input: string): {
   // 2. Check for numeric amount > 0 (Mandatory for Categories a and b)
   const amount = extractNumericAmount(text);
 
-  // If there is NO number (e.g. "hi", "good", "hello", "thanks"), it NEVER qualifies as a transaction or debt
+  // If there is NO number (e.g. "hi", "good", "hello", "thanks"), it NEVER qualifies as a transaction or debt.
+  // Instead of strictly forcing GENERAL_CHAT, check if it's any question or has financial topics.
   if (!amount || amount <= 0) {
-    // Check if it's a budget question or query without an explicit question mark
-    if (hasFinancialTopic) {
+    if (hasFinancialTopic || hasQuestionWord) {
       return { category: 'BUDGET_QUERY', amount: null, rawText };
     }
+    // Pure small talk or greeting
     return { category: 'GENERAL_CHAT', amount: null, rawText };
   }
 

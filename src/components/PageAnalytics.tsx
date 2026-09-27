@@ -20,11 +20,14 @@ import {
   MoreHorizontal,
   X,
   Edit3,
+  Download,
 } from 'lucide-react';
 import { Category, Transaction } from '../types.js';
 import { formatCurrency, formatDate } from '../utils/formatters.js';
 import { useTheme } from '../context/ThemeContext.js';
 import { PeerBalance } from '../types.js';
+import { exportDataToCsv } from '../utils/exportToCsv.js';
+import { useToast } from '../hooks/useToast.js';
 
 interface PageAnalyticsProps {
   transactions: Transaction[];
@@ -82,11 +85,13 @@ export const PageAnalytics: React.FC<PageAnalyticsProps> = ({
   onSelectCategory,
 }) => {
   const { theme } = useTheme();
+  const { showToast } = useToast();
   const [activeCategoryPickerId, setActiveCategoryPickerId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [localCategory, setLocalCategory] = useState<string>(propCategory || 'All');
   const [monthFilter, setMonthFilter] = useState<'current' | 'previous' | 'all' | 'custom'>('current');
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [isExporting, setIsExporting] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Keep in sync with propCategory when changed from external navigation
@@ -195,31 +200,63 @@ export const PageAnalytics: React.FC<PageAnalyticsProps> = ({
     >
       <div className="space-y-3 sm:space-y-3.5 flex flex-col">
         {/* PAGE HEADER */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          {onGoBack && (
-            <button
-              id="analytics-page-back-arrow-btn"
-              type="button"
-              onClick={onGoBack}
-              className={`p-2 rounded-xl border flex items-center justify-center transition-all cursor-pointer active:scale-90 shadow-xs group shrink-0 ${
-                theme.isDark
-                  ? 'bg-slate-800/90 hover:bg-slate-700 text-white border-slate-700/80 hover:border-emerald-500/50'
-                  : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200/90 hover:border-emerald-500/50 shadow-sm'
-              }`}
-              title="Go back to previous page"
-              aria-label="Previous page"
-            >
-              <ArrowLeft className={`w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5] transition-transform group-hover:-translate-x-0.5 ${theme.accentText}`} />
-            </button>
-          )}
-          <div>
-            <h1 className={`text-lg sm:text-xl font-bold font-display tracking-tight ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
-              Analytics & Transactions
-            </h1>
-            <p className={`text-[11px] sm:text-xs ${theme.isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              Auto-verified bank debits, UPI transfers & expenditures
-            </p>
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {onGoBack && (
+              <button
+                id="analytics-page-back-arrow-btn"
+                type="button"
+                onClick={onGoBack}
+                className={`p-2 rounded-xl border flex items-center justify-center transition-all cursor-pointer active:scale-90 shadow-xs group shrink-0 ${
+                  theme.isDark
+                    ? 'bg-slate-800/90 hover:bg-slate-700 text-white border-slate-700/80 hover:border-emerald-500/50'
+                    : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200/90 hover:border-emerald-500/50 shadow-sm'
+                }`}
+                title="Go back to previous page"
+                aria-label="Previous page"
+              >
+                <ArrowLeft className={`w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5] transition-transform group-hover:-translate-x-0.5 ${theme.accentText}`} />
+              </button>
+            )}
+            <div className="min-w-0">
+              <h1 className={`text-lg sm:text-xl font-bold font-display tracking-tight truncate ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
+                Analytics & Transactions
+              </h1>
+              <p className={`text-[11px] sm:text-xs truncate ${theme.isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                Auto-verified bank debits, UPI transfers & expenditures
+              </p>
+            </div>
           </div>
+
+          {/* Quick Export CSV button */}
+          <button
+            id="analytics-export-csv-btn"
+            type="button"
+            disabled={isExporting || transactions.length === 0}
+            onClick={() => {
+              setIsExporting(true);
+              const result = exportDataToCsv(filteredTransactions, peerBalances, {
+                includeTransactions: true,
+                includePeerBalances: true,
+                category: activeCategory !== 'All' ? activeCategory : undefined,
+              });
+              if (result.success) {
+                showToast(result.message || 'Exported transactions & ledgers to CSV!', 'success');
+              } else {
+                showToast(result.message || 'No data to export.', 'error');
+              }
+              setTimeout(() => setIsExporting(false), 800);
+            }}
+            style={{
+              backgroundColor: theme.accentColor,
+            }}
+            className="px-3 sm:px-3.5 py-1.5 rounded-full font-bold text-xs flex items-center gap-1.5 text-slate-950 shadow-sm hover:opacity-90 active:scale-95 transition-all cursor-pointer shrink-0 disabled:opacity-40"
+            title="Download CSV of transactions and peer ledgers"
+          >
+            <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span className="hidden sm:inline">{isExporting ? 'Exporting...' : 'Export CSV'}</span>
+            <span className="sm:hidden">{isExporting ? '...' : 'CSV'}</span>
+          </button>
         </div>
 
         {/* SEARCH & FILTERS BAR */}

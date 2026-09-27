@@ -352,6 +352,8 @@ export const App: React.FC = () => {
             currency={state.currency}
             smsPermissionGranted={state.smsPermissionGranted}
             userProfile={state.userProfile}
+            transactions={state.transactions}
+            peerBalances={state.peerBalances}
             onUpdateUserProfile={handleUpdateUserProfile}
             onOpenProfileModal={() => setIsProfileModalOpen(true)}
             onUpdateBudget={handleUpdateBudget}

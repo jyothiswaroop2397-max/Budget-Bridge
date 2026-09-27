@@ -264,14 +264,15 @@ export function analyzeFinancialQueryLocal(
   // ═════════════════════════════════════════════════════════════════════
   // 3. TODAY'S SPEND / DAILY BUDGET STATUS
   // ═════════════════════════════════════════════════════════════════════
-  if (
-    normalized.includes('today') ||
+  const isTodayBudgetStatusQuery =
+    (normalized.includes('today') && (normalized.includes('spend') || normalized.includes('spent') || normalized.includes('budget') || normalized.includes('limit') || normalized.includes('left') || normalized.includes('remaining') || normalized.includes('expense'))) ||
     normalized.includes('over budget') ||
     normalized.includes('left today') ||
     normalized.includes('remaining today') ||
     normalized.includes('daily limit') ||
-    normalized.includes('budget status')
-  ) {
+    normalized.includes('budget status');
+
+  if (isTodayBudgetStatusQuery) {
     const remaining = dailyLimit - spentToday;
     if (remaining < 0) {
       return {
@@ -370,7 +371,14 @@ export function analyzeFinancialQueryLocal(
   // ═════════════════════════════════════════════════════════════════════
   // 7. MONTHLY CAP / LIMIT QUERIES
   // ═════════════════════════════════════════════════════════════════════
-  if (normalized.includes('cap') || normalized.includes('limit for month') || normalized.includes('budget limit')) {
+  if (
+    /\bcap\b/i.test(normalized) ||
+    /\bcaps\b/i.test(normalized) ||
+    normalized.includes('monthly cap') ||
+    normalized.includes('budget cap') ||
+    normalized.includes('limit for month') ||
+    normalized.includes('budget limit')
+  ) {
     return {
       isQuery: true,
       queryType: 'MONTHLY_CAP',
@@ -412,8 +420,12 @@ export function analyzeFinancialQueryLocal(
     normalized.includes('owed to you') ||
     normalized.includes('who owes me') ||
     normalized.includes('owes me') ||
+    normalized.includes('owing me') ||
+    normalized.includes('owe me') ||
     normalized.includes('receivable') ||
-    normalized.includes('friends owe')
+    normalized.includes('friends owe') ||
+    normalized.includes('friend owe') ||
+    normalized.includes('friend owing')
   ) {
     const totalOwedToYou = context.totalOwedToYou ?? 0;
     const friends = (context.peerBalances || []).filter((p) => p.type === 'OWED_TO_YOU' && p.amount > 0);

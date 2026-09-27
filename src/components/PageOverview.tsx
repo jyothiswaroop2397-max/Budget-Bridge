@@ -32,6 +32,7 @@ import {
   HeartPulse,
   Edit3,
   Calendar,
+  Download,
 } from 'lucide-react';
 import { Category, PeerBalance, PeerBalanceType, Transaction, TransactionType } from '../types.js';
 import { formatCurrency, formatDate, CATEGORY_THEMES } from '../utils/formatters.js';
@@ -86,6 +87,7 @@ interface PageOverviewProps {
   selectedDate?: Date;
   onResetToCurrentMonth?: () => void;
   onOpenCalendar?: () => void;
+  onOpenExportCsv?: () => void;
 }
 
 export const PageOverview: React.FC<PageOverviewProps> = ({
