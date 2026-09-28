@@ -1,459 +1,812 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   TrendingUp,
+  Bot,
   Users,
-  Sparkles,
+  Smartphone,
+  PieChart,
+  HeartPulse,
+  Download,
   ArrowRight,
+  ArrowLeft,
   CheckCircle2,
+  Check,
+  X,
+  Sparkles,
+  ShieldCheck,
+  MessageSquare,
+  Calendar,
+  Layers,
 } from 'lucide-react';
 import { BudgetBridgeAppIcon } from './BudgetBridgeAppIcon.js';
+import { getDefaultAvatar } from '../utils/avatar.js';
+
+export interface GuidePageItem {
+  id: string;
+  icon: React.ComponentType<{ className?: string }>;
+  iconColor: string;
+  badge: string;
+  badgeBg: string;
+  title: string;
+  description: string;
+  mockComponent: React.ComponentType;
+}
+
+// --------------------------------------------------------------------------
+// MOCK UI ILLUSTRATIONS FOR EACH FEATURE
+// --------------------------------------------------------------------------
+
+const MockExpensesIllustration: React.FC = () => (
+  <div className="w-full h-full flex flex-col justify-between p-3.5 bg-gradient-to-b from-slate-900/95 to-slate-950/95 rounded-2xl border border-emerald-500/20 shadow-inner select-none font-sans text-xs">
+    {/* Mini Balance Banner */}
+    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
+      <div>
+        <div className="text-[10px] text-slate-400 font-medium">Net Balance (Income - Spent)</div>
+        <div className="text-sm font-bold text-emerald-400 font-display">₹42,350.00</div>
+      </div>
+      <div className="text-right">
+        <div className="text-[9px] text-slate-400">Monthly Cap</div>
+        <div className="text-xs font-semibold text-slate-200">₹30,000</div>
+      </div>
+    </div>
+
+    {/* Mini Transaction List */}
+    <div className="space-y-1.5 my-auto">
+      <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/40 border border-slate-700/30">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[10px]">
+            +
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-white leading-tight">Monthly Salary</div>
+            <div className="text-[9px] text-slate-400">Income • Verified Bank</div>
+          </div>
+        </div>
+        <span className="text-emerald-400 font-bold text-xs">+₹65,000</span>
+      </div>
+
+      <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/40 border border-slate-700/30">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-[10px]">
+            -
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-white leading-tight">Groceries & Supermarket</div>
+            <div className="text-[9px] text-slate-400">Food • Daily Limit Active</div>
+          </div>
+        </div>
+        <span className="text-rose-400 font-bold text-xs">-₹1,850</span>
+      </div>
+    </div>
+
+    {/* Daily Limit Bar */}
+    <div className="space-y-1 pt-1 border-t border-slate-800">
+      <div className="flex justify-between text-[10px]">
+        <span className="text-slate-400">Today's Cap: ₹1,850 / ₹2,500</span>
+        <span className="text-emerald-400 font-bold">₹650 Left</span>
+      </div>
+      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-full bg-emerald-500 rounded-full" style={{ width: '74%' }} />
+      </div>
+    </div>
+  </div>
+);
+
+const MockAiAssistantIllustration: React.FC = () => (
+  <div className="w-full h-full flex flex-col justify-between p-3.5 bg-gradient-to-b from-slate-900/95 to-slate-950/95 rounded-2xl border border-sky-500/20 shadow-inner select-none font-sans text-xs">
+    {/* Chat Bubble: User */}
+    <div className="flex justify-end items-end gap-1.5">
+      <div className="max-w-[80%] bg-sky-600 text-white rounded-2xl rounded-br-xs px-3 py-1.5 text-[11px] shadow-sm">
+        "Spent 250 on lunch with team"
+      </div>
+      <div className="w-5 h-5 rounded-full bg-slate-700 text-[9px] flex items-center justify-center text-slate-300 font-bold">
+        U
+      </div>
+    </div>
+
+    {/* Chat Bubble: Assistant Proposal */}
+    <div className="flex justify-start items-start gap-1.5 my-auto">
+      <div className="w-6 h-6 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 border border-sky-500/30">
+        <Bot className="w-3.5 h-3.5" />
+      </div>
+      <div className="max-w-[88%] bg-slate-800/90 border border-sky-500/30 rounded-2xl rounded-tl-xs p-2.5 space-y-2 text-[11px] shadow-md">
+        <p className="text-slate-200 leading-snug">
+          Logged <strong className="text-white">₹250</strong> under <span className="text-amber-400 font-semibold">Food</span>.
+        </p>
+        <div className="p-1.5 rounded-lg bg-slate-900/80 border border-slate-700/60 flex items-center justify-between text-[10px]">
+          <span className="text-slate-300">Daily balance left:</span>
+          <span className="text-emerald-400 font-bold">₹1,250</span>
+        </div>
+      </div>
+    </div>
+
+    {/* Input Pill Mock */}
+    <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-slate-400 text-[10px]">
+      <MessageSquare className="w-3.5 h-3.5 text-sky-400 ml-1" />
+      <span className="truncate">"What's my spending this week?"</span>
+      <span className="ml-auto w-4 h-4 rounded-full bg-sky-500 text-slate-950 font-bold flex items-center justify-center text-[9px]">
+        ↑
+      </span>
+    </div>
+  </div>
+);
+
+const MockPeerBalancesIllustration: React.FC = () => (
+  <div className="w-full h-full flex flex-col justify-between p-3.5 bg-gradient-to-b from-slate-900/95 to-slate-950/95 rounded-2xl border border-teal-500/20 shadow-inner select-none font-sans text-xs">
+    {/* Summary Tally Bar */}
+    <div className="grid grid-cols-2 gap-2">
+      <div className="p-2 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-left">
+        <span className="text-[9px] uppercase tracking-wider text-emerald-400 font-bold block">Owed to You</span>
+        <span className="text-sm font-bold text-white font-display">₹3,400</span>
+      </div>
+      <div className="p-2 rounded-xl bg-rose-950/40 border border-rose-500/30 text-left">
+        <span className="text-[9px] uppercase tracking-wider text-rose-400 font-bold block">You Owe</span>
+        <span className="text-sm font-bold text-white font-display">₹650</span>
+      </div>
+    </div>
+
+    {/* Peer Cards */}
+    <div className="space-y-1.5 my-auto">
+      <div className="p-2 rounded-xl bg-slate-800/70 border border-slate-700/50 flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-6 h-6 rounded-full bg-teal-500/20 text-teal-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+            R
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11px] font-bold text-white truncate">Rahul Sharma</div>
+            <div className="text-[9px] text-slate-400 truncate">Dinner split • ₹1,200 + Cab ₹300</div>
+          </div>
+        </div>
+        <span className="text-xs font-bold text-emerald-400 shrink-0">+₹1,500</span>
+      </div>
+
+      <div className="p-2 rounded-xl bg-slate-800/70 border border-slate-700/50 flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+            P
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11px] font-bold text-white truncate">Priya Patel</div>
+            <div className="text-[9px] text-slate-400 truncate">Weekend trip groceries</div>
+          </div>
+        </div>
+        <span className="text-xs font-bold text-emerald-400 shrink-0">+₹1,900</span>
+      </div>
+    </div>
+
+    {/* Quick Action Hint */}
+    <div className="p-1.5 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-between text-[10px]">
+      <span className="text-teal-300 font-medium">1-Click Settle Up with UPI</span>
+      <span className="text-emerald-400 font-bold">Itemized notes ✓</span>
+    </div>
+  </div>
+);
+
+const MockSmsDetectionIllustration: React.FC = () => (
+  <div className="w-full h-full flex flex-col justify-between p-3.5 bg-gradient-to-b from-slate-900/95 to-slate-950/95 rounded-2xl border border-indigo-500/20 shadow-inner select-none font-sans text-xs">
+    {/* Android Notification Style Mock */}
+    <div className="p-2 rounded-xl bg-slate-800/90 border border-indigo-500/30 space-y-1 shadow-sm">
+      <div className="flex items-center justify-between text-[9px] text-slate-400">
+        <div className="flex items-center gap-1 text-indigo-400 font-bold">
+          <Smartphone className="w-3 h-3" />
+          <span>HDFC BANK SMS</span>
+        </div>
+        <span>Just now</span>
+      </div>
+      <p className="text-[10px] text-slate-200 font-mono leading-tight">
+        "Rs 450.00 debited from A/C **1234 to ZOMATO on 28-SEP via UPI Ref 429182..."
+      </p>
+    </div>
+
+    {/* Detection Engine Processing Banner */}
+    <div className="my-auto p-2 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-1">
+      <div className="flex items-center justify-between text-[10px]">
+        <div className="flex items-center gap-1.5 font-bold text-emerald-400">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Auto-Logged & Verified</span>
+        </div>
+        <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold">
+          FOOD
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-[11px] font-semibold text-white pt-0.5">
+        <span>Zomato</span>
+        <span className="text-rose-400 font-bold">-₹450.00</span>
+      </div>
+    </div>
+
+    {/* Privacy & Spam Guarantee */}
+    <div className="flex items-center justify-between text-[10px] px-1 text-slate-400">
+      <span className="flex items-center gap-1 text-emerald-400">
+        <Check className="w-3 h-3 stroke-[3]" /> Bank SMS Only
+      </span>
+      <span className="text-slate-500">OTPs & Spam 100% Discarded</span>
+    </div>
+  </div>
+);
+
+const MockAnalyticsIllustration: React.FC = () => (
+  <div className="w-full h-full flex flex-col justify-between p-3.5 bg-gradient-to-b from-slate-900/95 to-slate-950/95 rounded-2xl border border-amber-500/20 shadow-inner select-none font-sans text-xs">
+    {/* Category Breakdown Bars */}
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between text-[10px]">
+        <span className="text-slate-300 font-semibold flex items-center gap-1">
+          <PieChart className="w-3 h-3 text-amber-400" /> Category Breakdown
+        </span>
+        <span className="text-slate-400">This Month</span>
+      </div>
+
+      <div className="space-y-1">
+        <div className="flex justify-between text-[9px] text-slate-300">
+          <span>Food & Dining (45%)</span>
+          <span className="font-bold text-white">₹8,450</span>
+        </div>
+        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-full bg-amber-400 rounded-full" style={{ width: '45%' }} />
+        </div>
+
+        <div className="flex justify-between text-[9px] text-slate-300">
+          <span>Travel & Cab (30%)</span>
+          <span className="font-bold text-white">₹5,200</span>
+        </div>
+        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-full bg-sky-400 rounded-full" style={{ width: '30%' }} />
+        </div>
+      </div>
+    </div>
+
+    {/* Mini Calendar View Grid */}
+    <div className="p-2 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1.5 my-auto">
+      <div className="flex items-center justify-between text-[9px] text-slate-400">
+        <span className="flex items-center gap-1 text-slate-200 font-bold">
+          <Calendar className="w-3 h-3 text-emerald-400" /> Daily Calendar View
+        </span>
+        <span className="text-emerald-400 font-bold">Sep 2026</span>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center font-mono text-[9px]">
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+          <span key={i} className="text-slate-500 font-bold">
+            {d}
+          </span>
+        ))}
+        {[22, 23, 24, 25, 26, 27, 28].map((day, idx) => (
+          <div
+            key={idx}
+            className={`py-0.5 rounded text-[8px] font-bold ${
+              idx === 6
+                ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                : idx % 2 === 0
+                ? 'bg-slate-700/70 text-slate-200'
+                : 'text-slate-400'
+            }`}
+          >
+            {day}
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <div className="text-[10px] text-center text-slate-400">
+      Track daily trends, monthly archives & seasonal habits
+    </div>
+  </div>
+);
+
+const MockHealthScoreIllustration: React.FC = () => (
+  <div className="w-full h-full flex flex-col justify-between p-3.5 bg-gradient-to-b from-slate-900/95 to-slate-950/95 rounded-2xl border border-rose-500/20 shadow-inner select-none font-sans text-xs">
+    {/* Score Circular Gauge Representation */}
+    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
+      <div className="flex items-center gap-2.5">
+        <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex flex-col items-center justify-center shrink-0">
+          <span className="text-xs font-black text-emerald-400 font-display">84</span>
+          <span className="text-[7px] text-slate-400 uppercase font-bold">/100</span>
+        </div>
+        <div>
+          <div className="text-[11px] font-bold text-white">Financial Health: Great</div>
+          <div className="text-[9px] text-emerald-400 font-semibold">Top 15% Savings Rate</div>
+        </div>
+      </div>
+      <HeartPulse className="w-5 h-5 text-rose-400" />
+    </div>
+
+    {/* Factor Sliders */}
+    <div className="space-y-1.5 my-auto">
+      <div className="flex items-center justify-between text-[10px]">
+        <span className="text-slate-300">Budget Discipline</span>
+        <span className="text-emerald-400 font-bold">95/100</span>
+      </div>
+      <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-full bg-emerald-400" style={{ width: '95%' }} />
+      </div>
+
+      <div className="flex items-center justify-between text-[10px]">
+        <span className="text-slate-300">Debt & Peer Settlement</span>
+        <span className="text-teal-400 font-bold">85/100</span>
+      </div>
+      <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-full bg-teal-400" style={{ width: '85%' }} />
+      </div>
+    </div>
+
+    {/* Actionable Tip */}
+    <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2 text-[10px] text-emerald-300">
+      <Sparkles className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+      <span className="leading-tight">Maintain your 4-month emergency buffer to boost score to 90+.</span>
+    </div>
+  </div>
+);
+
+const MockExportCsvIllustration: React.FC = () => (
+  <div className="w-full h-full flex flex-col justify-between p-3.5 bg-gradient-to-b from-slate-900/95 to-slate-950/95 rounded-2xl border border-emerald-500/20 shadow-inner select-none font-sans text-xs">
+    {/* CSV File Header Mock */}
+    <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-slate-700/60">
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+          <Download className="w-4 h-4" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-[11px] font-bold text-white truncate">budget-bridge-export.csv</div>
+          <div className="text-[9px] text-slate-400">Excel UTF-8 BOM • Universal Format</div>
+        </div>
+      </div>
+      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0">
+        Ready
+      </span>
+    </div>
+
+    {/* Mock Spreadsheet Grid */}
+    <div className="my-auto rounded-xl border border-slate-700/60 overflow-hidden font-mono text-[9px]">
+      <div className="grid grid-cols-4 bg-slate-800 text-slate-400 p-1 font-bold border-b border-slate-700">
+        <span>Date</span>
+        <span>Payee</span>
+        <span>Category</span>
+        <span className="text-right">Amount</span>
+      </div>
+      <div className="grid grid-cols-4 bg-slate-900/80 p-1 text-slate-300 border-b border-slate-800">
+        <span>28-Sep</span>
+        <span className="truncate">Swiggy</span>
+        <span>Food</span>
+        <span className="text-right text-rose-400">-₹420</span>
+      </div>
+      <div className="grid grid-cols-4 bg-slate-900/80 p-1 text-slate-300">
+        <span>27-Sep</span>
+        <span className="truncate">Rahul S.</span>
+        <span>Peer</span>
+        <span className="text-right text-emerald-400">+₹1,200</span>
+      </div>
+    </div>
+
+    {/* Feature bullets */}
+    <div className="p-1.5 rounded-lg bg-slate-800/60 border border-slate-700/50 flex items-center justify-between text-[10px] text-slate-300">
+      <span>Transactions + Peer Ledgers</span>
+      <span className="text-emerald-400 font-bold">1-Click from Settings</span>
+    </div>
+  </div>
+);
+
+// --------------------------------------------------------------------------
+// MASTER FEATURE GUIDE DATA ARRAY (Easily editable at the top)
+// --------------------------------------------------------------------------
+
+export const GUIDE_PAGES: GuidePageItem[] = [
+  {
+    id: 'expenses_income',
+    icon: TrendingUp,
+    iconColor: 'text-emerald-400',
+    badge: 'Core Ledger',
+    badgeBg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
+    title: 'Track Expenses & Income',
+    description:
+      'Log money manually across spending categories, set daily & monthly budget caps, and instantly monitor your net available balance.',
+    mockComponent: MockExpensesIllustration,
+  },
+  {
+    id: 'ai_copilot',
+    icon: Bot,
+    iconColor: 'text-sky-400',
+    badge: 'AI Copilot',
+    badgeBg: 'bg-sky-500/10 border-sky-500/30 text-sky-300',
+    title: 'AI Chat Assistant',
+    description:
+      'Type naturally like "Spent 250 on lunch" or ask "What is my balance?". The smart assistant logs transactions and answers questions about your data.',
+    mockComponent: MockAiAssistantIllustration,
+  },
+  {
+    id: 'peer_balances',
+    icon: Users,
+    iconColor: 'text-teal-400',
+    badge: 'Social Splits',
+    badgeBg: 'bg-teal-500/10 border-teal-500/30 text-teal-300',
+    title: 'Peer Balances & Ledgers',
+    description:
+      'Keep crystal-clear track of who owes you and who you owe, with itemized shared dinner or trip notes and one-tap UPI settlements.',
+    mockComponent: MockPeerBalancesIllustration,
+  },
+  {
+    id: 'sms_detection',
+    icon: Smartphone,
+    iconColor: 'text-indigo-400',
+    badge: 'Android Native',
+    badgeBg: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300',
+    title: 'Auto SMS Detection',
+    description:
+      'Bank and UPI transaction SMS messages are detected automatically and added as transactions, with OTPs and promo spam safely filtered out.',
+    mockComponent: MockSmsDetectionIllustration,
+  },
+  {
+    id: 'analytics_calendar',
+    icon: PieChart,
+    iconColor: 'text-amber-400',
+    badge: 'Insights',
+    badgeBg: 'bg-amber-500/10 border-amber-500/30 text-amber-300',
+    title: 'Analytics & Calendar',
+    description:
+      'Explore spending breakdowns by category, monthly trends, and an interactive calendar view to review daily spending histories.',
+    mockComponent: MockAnalyticsIllustration,
+  },
+  {
+    id: 'financial_health',
+    icon: HeartPulse,
+    iconColor: 'text-rose-400',
+    badge: 'Financial Wellness',
+    badgeBg: 'bg-rose-500/10 border-rose-500/30 text-rose-300',
+    title: 'Financial Health Score',
+    description:
+      'A dedicated dashboard calculates your overall financial health score, explains the key factors behind it, and gives personalized tips to improve.',
+    mockComponent: MockHealthScoreIllustration,
+  },
+  {
+    id: 'export_data',
+    icon: Download,
+    iconColor: 'text-emerald-400',
+    badge: 'Personal Records',
+    badgeBg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
+    title: 'Export Your Data',
+    description:
+      'Download your full transaction history and peer balances as a standardized CSV file from Settings for personal record-keeping in Excel.',
+    mockComponent: MockExportCsvIllustration,
+  },
+];
+
+// --------------------------------------------------------------------------
+// PROPS INTERFACE
+// --------------------------------------------------------------------------
 
 interface OnboardingFlowProps {
   onComplete: () => void;
+  onOpenLogin?: () => void;
+  /**
+   * If true, opened as "How it works / Feature Guide" from Settings.
+   * Last button will say "Done" and close directly without triggering setup steps.
+   */
+  mode?: 'first_launch' | 'guide';
 }
 
-export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
-  const [currentStep, setCurrentStep] = useState<number>(1);
-  const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number>(3);
+export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
+  onComplete,
+  onOpenLogin,
+  mode = 'first_launch',
+}) => {
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [isSettingUpProfile, setIsSettingUpProfile] = useState<boolean>(false);
+  const [profileName, setProfileName] = useState<string>('Guest');
 
-  // Screen 1 Auto-advance timer (auto advances to Screen 2 after ~3.5 seconds)
-  useEffect(() => {
-    if (currentStep !== 1) return;
+  // Swipe gesture tracking
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const minSwipeDistance = 45; // in px
 
-    const interval = setInterval(() => {
-      setAutoAdvanceCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setCurrentStep(2);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  const totalPages = GUIDE_PAGES.length;
+  const isFirstPage = currentIndex === 0;
+  const isLastPage = currentIndex === totalPages - 1;
 
-    return () => clearInterval(interval);
-  }, [currentStep]);
+  const currentPage = GUIDE_PAGES[currentIndex];
+  const IconComponent = currentPage.icon;
+  const MockComponent = currentPage.mockComponent;
 
-  const handleNext = () => {
-    if (currentStep < 4) {
-      setCurrentStep((prev) => prev + 1);
-    } else {
-      onComplete();
+  // Touch Swipe Handlers
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchEndX.current = null;
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (touchStartX.current === null || touchEndX.current === null) return;
+    const distance = touchStartX.current - touchEndX.current;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && !isLastPage) {
+      setCurrentIndex((prev) => prev + 1);
+    } else if (isRightSwipe && !isFirstPage) {
+      setCurrentIndex((prev) => prev - 1);
     }
   };
 
-  const handleSkip = () => {
+  // Keyboard navigation for desktop accessibility
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isSettingUpProfile) return;
+      if (e.key === 'ArrowRight' && !isLastPage) {
+        setCurrentIndex((prev) => prev + 1);
+      } else if (e.key === 'ArrowLeft' && !isFirstPage) {
+        setCurrentIndex((prev) => prev - 1);
+      } else if (e.key === 'Escape' && mode === 'guide') {
+        onComplete();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLastPage, isFirstPage, isSettingUpProfile, mode, onComplete]);
+
+  const handleNext = () => {
+    if (!isLastPage) {
+      setCurrentIndex((prev) => prev + 1);
+    } else {
+      handleFinalAction();
+    }
+  };
+
+  const handlePrev = () => {
+    if (!isFirstPage) {
+      setCurrentIndex((prev) => prev - 1);
+    }
+  };
+
+  const handleFinalAction = () => {
+    if (mode === 'guide') {
+      onComplete();
+    } else {
+      // First-launch mode: transition to brief name setup
+      setIsSettingUpProfile(true);
+    }
+  };
+
+  const handleSaveProfileAndFinish = () => {
+    try {
+      const existing = localStorage.getItem('budget_bridge_state');
+      if (existing) {
+        const parsed = JSON.parse(existing);
+        parsed.userProfile = {
+          name: profileName.trim() || 'Guest',
+          avatarUrl: getDefaultAvatar(profileName.trim() || 'Guest'),
+        };
+        localStorage.setItem('budget_bridge_state', JSON.stringify(parsed));
+      }
+    } catch (e) {
+      // Ignore
+    }
     onComplete();
   };
 
-  return (
-    <div
-      id="budget-bridge-onboarding-container"
-      className="fixed inset-0 z-[99999] flex flex-col items-center justify-between bg-[#0F172A] text-white select-none overflow-hidden"
-    >
-      {/* 1. TOP BAR: Skip Link (Screens 2, 3, 4) */}
-      <div className="w-full max-w-md px-6 pt-6 sm:pt-8 flex items-center justify-between z-20 shrink-0">
-        <div className="flex items-center gap-2">
-          {currentStep > 1 && (
-            <div className="flex items-center gap-1.5 opacity-80">
-              <span className="w-2 h-2 rounded-full bg-[#10B981]" />
-              <span className="text-[11px] font-bold tracking-wider uppercase text-emerald-400 font-mono">
-                {currentStep} of 4
-              </span>
+  // =========================================================================
+  // OPTIONAL NAME & AVATAR ONBOARDING STEP (First Launch Only)
+  // =========================================================================
+  if (isSettingUpProfile && mode === 'first_launch') {
+    return (
+      <div
+        id="onboarding-profile-setup-container"
+        className="fixed inset-0 z-[99999] flex flex-col items-center justify-between bg-[#0F172A] text-white select-none overflow-y-auto p-5 sm:p-8 animate-in fade-in duration-300"
+      >
+        <div className="w-full max-w-sm my-auto space-y-6 text-center">
+          <div className="relative inline-block mx-auto mb-2">
+            <div className="absolute -inset-3 bg-emerald-500/25 rounded-3xl blur-xl pointer-events-none" />
+            <BudgetBridgeAppIcon size="xl" className="ring-2 ring-emerald-400/50 shadow-2xl relative" />
+          </div>
+
+          <div className="space-y-1.5">
+            <h2 className="text-2xl sm:text-3xl font-extrabold font-display text-white tracking-tight">
+              Welcome to <span className="text-[#10B981]">Budget Bridge</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300">
+              What should we call you in your financial dashboard?
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-3 text-left shadow-lg">
+            <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+              Your Name or Nickname
+            </label>
+            <input
+              id="onboarding-name-input"
+              type="text"
+              value={profileName}
+              onChange={(e) => setProfileName(e.target.value)}
+              placeholder="e.g. Swaroop, Alex, Sarah"
+              maxLength={28}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 focus:border-emerald-500 text-sm font-semibold text-white outline-none transition-colors"
+              autoFocus
+            />
+            <p className="text-[10px] text-slate-400">
+              You can change this or upload a custom photo anytime in Settings.
+            </p>
+          </div>
+
+          <button
+            id="onboarding-profile-finish-btn"
+            type="button"
+            onClick={handleSaveProfileAndFinish}
+            className="w-full py-3.5 px-6 rounded-2xl bg-[#10B981] hover:bg-emerald-400 text-slate-950 font-extrabold text-sm tracking-wide transition-all shadow-lg shadow-emerald-500/30 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>Enter Budget Bridge</span>
+            <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+          </button>
+
+          {onOpenLogin && (
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  handleSaveProfileAndFinish();
+                  onOpenLogin();
+                }}
+                className="text-xs text-slate-400 hover:text-emerald-400 transition-colors font-semibold cursor-pointer underline underline-offset-4"
+              >
+                Already have an account? Sign In here →
+              </button>
             </div>
           )}
         </div>
-
-        {currentStep > 1 && (
-          <button
-            id="onboarding-skip-btn"
-            onClick={handleSkip}
-            className="text-xs font-semibold tracking-wide text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-full hover:bg-white/10 active:scale-95 cursor-pointer"
-          >
-            Skip
-          </button>
-        )}
       </div>
+    );
+  }
 
-      {/* 2. CENTRAL CARD: Illustrated Scene + Story Content */}
-      <div className="w-full max-w-md px-5 sm:px-6 flex-1 flex flex-col items-center justify-center min-h-0 py-2">
-        {/* SHARED ILLUSTRATED SCENE (SVG / CSS) */}
-        <div
-          id="onboarding-illustration-stage"
-          onClick={() => currentStep === 1 && setCurrentStep(2)}
-          className={`w-full aspect-[16/10] max-h-[260px] rounded-3xl overflow-hidden relative shadow-2xl shadow-[#0F766E]/20 border border-white/10 mb-6 sm:mb-8 transition-all duration-500 ${
-            currentStep === 1 ? 'cursor-pointer hover:border-emerald-500/40' : ''
-          }`}
-          style={{
-            background: 'linear-gradient(180deg, #070D18 0%, #0F172A 50%, #0F766E 100%)',
-          }}
-        >
-          <svg
-            viewBox="0 0 400 240"
-            className="w-full h-full"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              {/* Sky Ambient Gradient */}
-              <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#070D18" />
-                <stop offset="45%" stopColor="#0F172A" />
-                <stop offset="78%" stopColor="#0F766E" />
-                <stop offset="100%" stopColor="#134E4A" />
-              </linearGradient>
-
-              {/* Water Reflection Gradient */}
-              <linearGradient id="waterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#0F766E" stopOpacity="0.85" />
-                <stop offset="35%" stopColor="#0B3E3B" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="#070D18" stopOpacity="0.95" />
-              </linearGradient>
-
-              {/* Green Bridge Gradient */}
-              <linearGradient id="bridgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#059669" />
-                <stop offset="30%" stopColor="#10B981" />
-                <stop offset="70%" stopColor="#34D399" />
-                <stop offset="100%" stopColor="#059669" />
-              </linearGradient>
-
-              {/* Sun Glow Filter */}
-              <filter id="sunGlow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="14" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
-
-            {/* SKY BACKGROUND */}
-            <rect width="400" height="150" fill="url(#skyGrad)" />
-
-            {/* TWINKLING STARS IN DEEP SKY */}
-            <circle cx="45" cy="25" r="1" fill="#FFFFFF" opacity="0.6" />
-            <circle cx="95" cy="40" r="1.5" fill="#FDE68A" opacity="0.7" />
-            <circle cx="160" cy="20" r="1" fill="#FFFFFF" opacity="0.5" />
-            <circle cx="285" cy="30" r="1.2" fill="#FDE68A" opacity="0.8" />
-            <circle cx="340" cy="18" r="1" fill="#FFFFFF" opacity="0.5" />
-            <circle cx="365" cy="48" r="1.5" fill="#FDE68A" opacity="0.6" />
-
-            {/* GLOWING GOLD CIRCLE (SUN/MOON) LOW ON THE HORIZON */}
-            <g id="horizon-sun">
-              {/* Outer soft ambient aura */}
-              <circle cx="200" cy="138" r="42" fill="#FBBF24" opacity="0.25" filter="url(#sunGlow)" />
-              {/* Core Sun Disc */}
-              <circle cx="200" cy="138" r="26" fill="#FBBF24" />
-              <circle cx="200" cy="138" r="22" fill="#FDE68A" opacity="0.85" />
-            </g>
-
-            {/* REFLECTIVE WATER GRADIENT BELOW HORIZON (y=146 to 240) */}
-            <rect y="146" width="400" height="94" fill="url(#waterGrad)" />
-
-            {/* Shimmering Water Reflection Lines */}
-            <line x1="170" y1="154" x2="230" y2="154" stroke="#FDE68A" strokeWidth="2.5" strokeLinecap="round" opacity="0.75" />
-            <line x1="155" y1="162" x2="245" y2="162" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
-            <line x1="140" y1="172" x2="260" y2="172" stroke="#FBBF24" strokeWidth="1.8" strokeLinecap="round" opacity="0.45" />
-            <line x1="165" y1="184" x2="235" y2="184" stroke="#34D399" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" />
-            <line x1="180" y1="196" x2="220" y2="196" stroke="#10B981" strokeWidth="1.5" strokeLinecap="round" opacity="0.3" />
-
-            {/* GREEN GRADIENT BRIDGE ARCH SILHOUETTE CROSSING THE SCENE */}
-            <g id="bridge-structure">
-              {/* Main horizontal deck span */}
-              <path
-                d="M 0 152 Q 200 136 400 152 L 400 162 Q 200 146 0 162 Z"
-                fill="url(#bridgeGrad)"
-              />
-              {/* Lower arch curve crossing above the water */}
-              <path
-                d="M 20 200 Q 200 138 380 200 L 365 200 Q 200 148 35 200 Z"
-                fill="#34D399"
-                opacity="0.85"
-              />
-              {/* Vertical bridge suspension piers */}
-              <line x1="90" y1="150" x2="90" y2="186" stroke="#6EE7B7" strokeWidth="2" opacity="0.7" />
-              <line x1="140" y1="144" x2="140" y2="164" stroke="#6EE7B7" strokeWidth="2" opacity="0.7" />
-              <line x1="260" y1="144" x2="260" y2="164" stroke="#6EE7B7" strokeWidth="2" opacity="0.7" />
-              <line x1="310" y1="150" x2="310" y2="186" stroke="#6EE7B7" strokeWidth="2" opacity="0.7" />
-            </g>
-
-            {/* ============================================================ */}
-            {/* SCREEN-SPECIFIC SCENE VARIATIONS */}
-            {/* ============================================================ */}
-
-            {/* SCREEN 1: Bridge + Coin Logo Icon Centered */}
-            {currentStep === 1 && (
-              <g id="screen-1-details" className="animate-fade-in">
-                {/* Large floating golden coin with rupee on bridge apex */}
-                <circle cx="200" cy="116" r="24" fill="#FBBF24" stroke="#F59E0B" strokeWidth="2" filter="url(#sunGlow)" />
-                <circle cx="200" cy="116" r="20" fill="#FDE68A" opacity="0.3" />
-                {/* Rupee Symbol */}
-                <text
-                  x="200"
-                  y="122"
-                  textAnchor="middle"
-                  fill="#0F172A"
-                  fontSize="22"
-                  fontWeight="900"
-                  fontFamily="'Plus Jakarta Sans', Outfit, sans-serif"
-                >
-                  ₹
-                </text>
-                {/* Connecting light beams */}
-                <line x1="200" y1="140" x2="200" y2="146" stroke="#6EE7B7" strokeWidth="3" strokeLinecap="round" />
-              </g>
-            )}
-
-            {/* SCREEN 2: Silhouette figure with backpack walking toward glowing horizon */}
-            {currentStep === 2 && (
-              <g id="screen-2-figure" className="animate-fade-in">
-                {/* Walking figure on the bridge deck heading towards center/horizon */}
-                <g transform="translate(192, 116)">
-                  {/* Head */}
-                  <circle cx="10" cy="5" r="4.5" fill="#0F172A" stroke="#34D399" strokeWidth="0.8" />
-                  {/* Torso & Jacket */}
-                  <path d="M 6 10 L 14 10 L 13 22 L 7 22 Z" fill="#0F172A" />
-                  {/* Backpack */}
-                  <rect x="2" y="11" width="5" height="9" rx="2.5" fill="#10B981" stroke="#34D399" strokeWidth="0.8" />
-                  {/* Walking Legs */}
-                  <line x1="8" y1="22" x2="5" y2="31" stroke="#0F172A" strokeWidth="2.8" strokeLinecap="round" />
-                  <line x1="12" y1="22" x2="16" y2="30" stroke="#0F172A" strokeWidth="2.8" strokeLinecap="round" />
-                  {/* Glowing footprint shimmer on bridge */}
-                  <ellipse cx="10" cy="32" rx="7" ry="2" fill="#FBBF24" opacity="0.6" />
-                </g>
-              </g>
-            )}
-
-            {/* SCREEN 3: Two person silhouettes on either side of gold coin above bridge */}
-            {currentStep === 3 && (
-              <g id="screen-3-friends" className="animate-fade-in">
-                {/* Left Person Silhouette */}
-                <g transform="translate(132, 115)">
-                  <circle cx="8" cy="6" r="5" fill="#0F172A" stroke="#34D399" strokeWidth="0.8" />
-                  <path d="M 1 27 C 1 17 4 13 8 13 C 12 13 15 17 15 27 Z" fill="#0F172A" />
-                </g>
-
-                {/* Central Floating Gold Coin with Rupee */}
-                <g transform="translate(200, 110)">
-                  <circle cx="0" cy="0" r="15" fill="#FBBF24" stroke="#F59E0B" strokeWidth="2" filter="url(#sunGlow)" />
-                  <text
-                    x="0"
-                    y="5"
-                    textAnchor="middle"
-                    fill="#0F172A"
-                    fontSize="15"
-                    fontWeight="900"
-                    fontFamily="'Plus Jakarta Sans', Outfit, sans-serif"
-                  >
-                    ₹
-                  </text>
-                  {/* Subtle exchange arrows */}
-                  <path d="M -24 -2 L -20 -6 L -20 -3 L -12 -3 L -12 -1 L -20 -1 L -20 2 Z" fill="#6EE7B7" />
-                  <path d="M 24 2 L 20 6 L 20 3 L 12 3 L 12 1 L 20 1 L 20 -2 Z" fill="#6EE7B7" />
-                </g>
-
-                {/* Right Person Silhouette */}
-                <g transform="translate(252, 115)">
-                  <circle cx="8" cy="6" r="5" fill="#0F172A" stroke="#34D399" strokeWidth="0.8" />
-                  <path d="M 1 27 C 1 17 4 13 8 13 C 12 13 15 17 15 27 Z" fill="#0F172A" />
-                </g>
-              </g>
-            )}
-
-            {/* SCREEN 4: Small City Skyline Silhouette on Far Side (suggesting arrival) */}
-            {currentStep === 4 && (
-              <g id="screen-4-skyline" className="animate-fade-in">
-                {/* Distant city silhouette on the right bank horizon */}
-                <g fill="#0B2B28" opacity="0.95">
-                  {/* Skyscraper 1 */}
-                  <rect x="270" y="112" width="14" height="38" rx="1" />
-                  {/* Skyscraper 2 with antenna */}
-                  <rect x="288" y="98" width="18" height="52" rx="1" />
-                  <line x1="297" y1="92" x2="297" y2="98" stroke="#34D399" strokeWidth="1.5" />
-                  <circle cx="297" cy="91" r="1.5" fill="#FBBF24" />
-                  {/* Building 3 */}
-                  <rect x="310" y="118" width="16" height="32" rx="1" />
-                  {/* Building 4 with spire */}
-                  <rect x="330" y="104" width="20" height="46" rx="1" />
-                  <polygon points="340,94 334,104 346,104" fill="#0B2B28" />
-                  {/* Building 5 */}
-                  <rect x="354" y="122" width="16" height="28" rx="1" />
-                </g>
-
-                {/* Glowing windows on distant buildings */}
-                <circle cx="294" cy="106" r="1" fill="#FDE68A" opacity="0.9" />
-                <circle cx="300" cy="106" r="1" fill="#FDE68A" opacity="0.9" />
-                <circle cx="294" cy="116" r="1" fill="#FDE68A" opacity="0.9" />
-                <circle cx="336" cy="112" r="1" fill="#FDE68A" opacity="0.9" />
-                <circle cx="342" cy="112" r="1" fill="#FDE68A" opacity="0.9" />
-                <circle cx="336" cy="120" r="1" fill="#FDE68A" opacity="0.9" />
-
-                {/* Arrival Beacon Light */}
-                <circle cx="297" cy="91" r="5" fill="#FBBF24" opacity="0.4" filter="url(#sunGlow)" />
-              </g>
-            )}
-          </svg>
+  // =========================================================================
+  // SWIPEABLE FEATURE GUIDE VIEW
+  // =========================================================================
+  return (
+    <div
+      id="budget-bridge-onboarding-container"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      className="fixed inset-0 z-[99999] flex flex-col items-center justify-between bg-[#0F172A] text-white select-none overflow-hidden"
+    >
+      {/* 1. TOP HEADER: Progress Tag & Skip / Close Button */}
+      <header className="w-full max-w-md px-5 pt-5 sm:pt-7 flex items-center justify-between z-20 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center">
+            <BudgetBridgeAppIcon size="xs" />
+          </div>
+          <div>
+            <span className="text-xs font-bold text-slate-200 block font-display leading-tight">
+              Budget Bridge
+            </span>
+            <span className="text-[10px] font-semibold text-emerald-400 font-mono">
+              Feature {currentIndex + 1} of {totalPages}
+            </span>
+          </div>
         </div>
 
-        {/* ============================================================ */}
-        {/* SCREEN 1: SPLASH / WELCOME */}
-        {/* ============================================================ */}
-        {currentStep === 1 && (
-          <div
-            id="onboarding-screen-1"
-            className="w-full text-center space-y-4 animate-fade-in flex flex-col items-center"
-            onClick={() => setCurrentStep(2)}
+        {/* Top Action Button: Skip (if first-launch) or Close X (if guide mode) */}
+        {mode === 'guide' ? (
+          <button
+            id="guide-close-btn"
+            type="button"
+            onClick={onComplete}
+            aria-label="Close guide"
+            className="p-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-700/70 text-slate-300 hover:text-white transition-colors cursor-pointer"
           >
-            {/* Centered Bridge + Coin App Icon */}
-            <div className="relative mb-1">
-              <div className="absolute -inset-2 bg-emerald-500/20 rounded-2xl blur-lg pointer-events-none" />
-              <BudgetBridgeAppIcon size="xl" className="ring-2 ring-emerald-400/40 shadow-xl" />
-            </div>
-
-            {/* Title */}
-            <h1 className="text-3xl sm:text-4xl font-extrabold font-display tracking-tight text-white">
-              Budget <span className="text-[#10B981]">Bridge</span>
-            </h1>
-
-            {/* Subtitle */}
-            <p className="text-sm sm:text-base font-medium text-slate-300">
-              Connect Today. A Brighter Tomorrow.
-            </p>
-
-            {/* Tagline Row of 3 Items */}
-            <div className="flex items-center justify-center gap-4 sm:gap-6 pt-3">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/60 shadow-xs">
-                <TrendingUp className="w-3.5 h-3.5 text-[#10B981]" />
-                <span className="text-xs font-semibold text-slate-200">Track</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/60 shadow-xs">
-                <Users className="w-3.5 h-3.5 text-[#0F766E]" />
-                <span className="text-xs font-semibold text-slate-200">Settle</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/60 shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-[#FBBF24]" />
-                <span className="text-xs font-semibold text-slate-200">Grow</span>
-              </div>
-            </div>
-
-            {/* Auto-advance hint / tap to continue */}
-            <div className="pt-4 text-slate-400 text-xs flex items-center gap-2 cursor-pointer">
-              <span>Tap anywhere or wait {autoAdvanceCountdown}s to continue</span>
-              <ArrowRight className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            </div>
-          </div>
+            <X className="w-4 h-4" />
+          </button>
+        ) : (
+          !isLastPage && (
+            <button
+              id="onboarding-skip-btn"
+              type="button"
+              onClick={handleFinalAction}
+              className="text-xs font-semibold text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-full hover:bg-white/10 active:scale-95 cursor-pointer"
+            >
+              Skip
+            </button>
+          )
         )}
+      </header>
 
-        {/* ============================================================ */}
-        {/* SCREEN 2: TRACK YOUR MONEY */}
-        {/* ============================================================ */}
-        {currentStep === 2 && (
-          <div id="onboarding-screen-2" className="w-full text-center space-y-3 animate-fade-in">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold tracking-wider uppercase mb-1">
-              <TrendingUp className="w-3 h-3" />
-              Smart Tracking
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold font-display text-white tracking-tight">
-              Track <span className="text-[#10B981]">Your Money</span>
-            </h2>
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-xs mx-auto">
-              Keep a clear view of your income, expenses, and savings — all in one place.
-            </p>
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* SCREEN 3: SETTLE WITH FRIENDS */}
-        {/* ============================================================ */}
-        {currentStep === 3 && (
-          <div id="onboarding-screen-3" className="w-full text-center space-y-3 animate-fade-in">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0F766E]/20 border border-[#0F766E]/50 text-teal-300 text-[11px] font-bold tracking-wider uppercase mb-1">
-              <Users className="w-3 h-3" />
-              Social Balances
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold font-display text-white tracking-tight">
-              Settle <span className="text-[#10B981]">With Friends</span>
-            </h2>
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-xs mx-auto">
-              Easily track who owes whom and settle up without the awkward conversations.
-            </p>
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* SCREEN 4: BUILD A BRIGHTER TOMORROW */}
-        {/* ============================================================ */}
-        {currentStep === 4 && (
-          <div id="onboarding-screen-4" className="w-full text-center space-y-3 animate-fade-in">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-bold tracking-wider uppercase mb-1">
-              <Sparkles className="w-3 h-3" />
-              Financial Freedom
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold font-display text-white tracking-tight">
-              Build <span className="text-[#10B981]">A Brighter Tomorrow</span>
-            </h2>
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-xs mx-auto">
-              Make smarter choices today and cross the bridge to your financial goals.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* 3. BOTTOM BAR: Dot Pagination & Navigation Buttons */}
-      <div className="w-full max-w-md px-6 pb-8 pt-4 flex flex-col items-center gap-5 z-20 shrink-0">
-        {/* DOT PAGINATION (1 to 4) */}
+      {/* 2. MAIN SWIPEABLE BODY: Illustration + Title + Description */}
+      <main className="w-full max-w-md px-5 sm:px-6 flex-1 flex flex-col items-center justify-center min-h-0 py-2">
         <div
-          id="onboarding-pagination-dots"
-          className="flex items-center justify-center gap-2.5"
-          aria-label={`Step ${currentStep} of 4`}
+          key={currentPage.id}
+          className="w-full flex flex-col items-center text-center animate-in fade-in slide-in-from-right-3 duration-300 fill-mode-both"
         >
-          {[1, 2, 3, 4].map((step) => {
-            const isActive = currentStep === step;
+          {/* ILLUSTRATIVE CARD STAGE */}
+          <div
+            id="feature-guide-stage-card"
+            className="w-full aspect-[16/10] max-h-[240px] sm:max-h-[260px] rounded-3xl overflow-hidden relative shadow-2xl shadow-emerald-950/40 border border-white/10 mb-4 sm:mb-6 p-2 bg-[#070D18]"
+          >
+            <MockComponent />
+          </div>
+
+          {/* BADGE PILL */}
+          <div
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold tracking-wider uppercase mb-2 ${currentPage.badgeBg}`}
+          >
+            <IconComponent className="w-3.5 h-3.5" />
+            <span>{currentPage.badge}</span>
+          </div>
+
+          {/* PAGE TITLE */}
+          <h2 className="text-xl sm:text-2xl font-extrabold font-display text-white tracking-tight mb-2">
+            {currentPage.title}
+          </h2>
+
+          {/* 1-2 SENTENCE DESCRIPTION */}
+          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xs sm:max-w-sm mx-auto px-1">
+            {currentPage.description}
+          </p>
+        </div>
+      </main>
+
+      {/* 3. BOTTOM FOOTER: Dot Indicators & Next / Back / Get Started */}
+      <footer className="w-full max-w-md px-5 pb-6 sm:pb-8 pt-2 flex flex-col items-center gap-4 z-20 shrink-0">
+        {/* DOT PROGRESS INDICATORS (Horizontal Swipe Navigation) */}
+        <div
+          id="feature-guide-pagination-dots"
+          className="flex items-center justify-center gap-2"
+          aria-label={`Slide ${currentIndex + 1} of ${totalPages}`}
+        >
+          {GUIDE_PAGES.map((page, idx) => {
+            const isActive = currentIndex === idx;
             return (
               <button
-                key={step}
-                onClick={() => setCurrentStep(step)}
-                aria-label={`Go to slide ${step}`}
+                key={page.id}
+                type="button"
+                onClick={() => setCurrentIndex(idx)}
+                aria-label={`Go to ${page.title}`}
                 className={`transition-all duration-300 rounded-full cursor-pointer ${
                   isActive
-                    ? 'w-8 h-2.5 bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.7)]'
-                    : 'w-2.5 h-2.5 bg-slate-700 hover:bg-slate-500'
+                    ? 'w-7 sm:w-8 h-2 bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.7)]'
+                    : 'w-2 h-2 bg-slate-700 hover:bg-slate-500'
                 }`}
               />
             );
           })}
         </div>
 
-        {/* ACTION BUTTONS (Screens 2, 3, 4) */}
-        <div className="w-full min-h-[52px]">
-          {currentStep === 1 ? (
+        {/* BOTTOM ACTION BUTTONS */}
+        <div className="w-full flex items-center gap-2.5 min-h-[48px]">
+          {/* Back Button (visible when not on first page) */}
+          {!isFirstPage && (
             <button
-              id="onboarding-step1-continue-btn"
-              onClick={() => setCurrentStep(2)}
-              className="w-full py-3.5 px-6 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 font-bold text-sm tracking-wide transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+              id="guide-back-btn"
+              type="button"
+              onClick={handlePrev}
+              className="py-3 px-4 rounded-2xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 text-slate-300 font-bold text-xs tracking-wide transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+              title="Previous feature"
             >
-              <span>Explore Budget Bridge</span>
-              <ArrowRight className="w-4 h-4 text-emerald-400" />
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden min-[380px]:inline">Back</span>
             </button>
-          ) : currentStep < 4 ? (
+          )}
+
+          {/* Primary Action Button (Next or Get Started / Done) */}
+          {!isLastPage ? (
             <button
-              id="onboarding-next-btn"
+              id="guide-next-btn"
+              type="button"
               onClick={handleNext}
-              className="w-full py-3.5 px-6 rounded-2xl bg-[#10B981] hover:bg-emerald-400 text-slate-950 font-extrabold text-base tracking-wide transition-all shadow-lg shadow-emerald-500/25 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+              className="flex-1 py-3 px-5 rounded-2xl bg-[#10B981] hover:bg-emerald-400 text-slate-950 font-extrabold text-sm tracking-wide transition-all shadow-lg shadow-emerald-500/25 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Next</span>
-              <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+              <ArrowRight className="w-4 h-4 stroke-[2.5]" />
             </button>
           ) : (
             <button
-              id="onboarding-get-started-btn"
-              onClick={handleSkip}
-              className="w-full py-3.5 px-6 rounded-2xl bg-[#10B981] hover:bg-emerald-400 text-slate-950 font-extrabold text-base tracking-wide transition-all shadow-lg shadow-emerald-500/30 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+              id="guide-finish-btn"
+              type="button"
+              onClick={handleFinalAction}
+              className="flex-1 py-3.5 px-6 rounded-2xl bg-[#10B981] hover:bg-emerald-400 text-slate-950 font-extrabold text-sm tracking-wide transition-all shadow-lg shadow-emerald-500/30 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span>Get Started</span>
-              <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+              <span>{mode === 'guide' ? 'Done' : 'Get Started'}</span>
+              <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
             </button>
           )}
         </div>
-      </div>
+      </footer>
     </div>
   );
 };

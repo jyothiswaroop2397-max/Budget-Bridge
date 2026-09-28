@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "userState": {
+      "title": "UserState",
+      "description": "Per-user financial ledger and application state",
+      "type": "object",
+      "properties": {
+        "monthlyCap": {
+          "type": "number",
+          "description": "User monthly spending cap"
+        },
+        "dailyLimit": {
+          "type": "number",
+          "description": "User daily spending limit"
+        },
+        "spentToday": {
+          "type": "number",
+          "description": "Calculated or logged spending today"
+        },
+        "currency": {
+          "type": "string",
+          "description": "Active currency code (e.g. INR, USD)"
+        },
+        "transactions": {
+          "type": "array",
+          "description": "User list of income and expense transactions"
+        },
+        "peerBalances": {
+          "type": "array",
+          "description": "User peer balances and shared ledgers"
+        },
+        "savingsEntries": {
+          "type": "array",
+          "description": "User savings assets and funds"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp of last sync"
+        }
+      },
+      "required": ["monthlyCap", "dailyLimit", "currency"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/data/app_state": {
+      "schema": "userState",
+      "description": "Isolated per-user state and financial ledgers"
+    }
+  }
+}

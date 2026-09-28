@@ -6,6 +6,7 @@ import {
   Camera,
   Calendar,
   Settings,
+  LogIn,
 } from 'lucide-react';
 import { BudgetBridgeAppIcon } from './BudgetBridgeAppIcon.js';
 import { useTheme } from '../context/ThemeContext.js';
@@ -20,6 +21,7 @@ interface NavigationHeaderProps {
   currency?: string;
   userProfile?: UserProfile;
   onOpenProfileModal?: () => void;
+  onOpenLoginModal?: () => void;
   selectedDate?: Date;
   onPreviousMonth?: () => void;
   onNextMonth?: () => void;
@@ -33,6 +35,7 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
   silentVerificationActive,
   userProfile = { name: 'Guest', avatarUrl: getDefaultAvatar('Guest') },
   onOpenProfileModal,
+  onOpenLoginModal,
   selectedDate,
   onPreviousMonth,
   onNextMonth,
@@ -215,6 +218,24 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
           >
             <Settings className={`w-4 h-4 ${currentPage === 2 ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
           </button>
+
+          {/* Quick Sign In button for guest users */}
+          {!userProfile.isLoggedIn && onOpenLoginModal && (
+            <button
+              id="nav-header-login-btn"
+              type="button"
+              onClick={onOpenLoginModal}
+              className={`hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer active:scale-95 ${
+                theme.isDark
+                  ? 'border-emerald-500/40 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300'
+                  : 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+              }`}
+              title="Sign in to your account"
+            >
+              <LogIn className="w-3 h-3 stroke-[2.5]" />
+              <span>Sign In</span>
+            </button>
+          )}
 
           {/* User Profile Avatar button */}
           {onOpenProfileModal && (

@@ -15,9 +15,14 @@ import {
   ArrowLeft,
   FileDown,
   Download,
+  Sliders,
+  BookOpen,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { formatCurrency, CURRENCIES } from '../utils/formatters.js';
 import { BudgetBridgeAppIcon } from './BudgetBridgeAppIcon.js';
+import { ExportCsvModal } from './ExportCsvModal.js';
 import { useTheme } from '../context/ThemeContext.js';
 import { useToast } from '../hooks/useToast.js';
 import { UserProfile, Transaction, PeerBalance } from '../types.js';
@@ -34,6 +39,8 @@ interface PageSettingsProps {
   peerBalances?: PeerBalance[];
   onUpdateUserProfile?: (profile: UserProfile) => void;
   onOpenProfileModal?: () => void;
+  onOpenLoginModal?: () => void;
+  onLogout?: () => void;
   onUpdateBudget: (caps: { monthlyCap: number; dailyLimit: number }) => void;
   onUpdateCurrency: (currency: string) => void;
   onToggleSmsPermission: (granted: boolean) => void;
@@ -41,6 +48,7 @@ interface PageSettingsProps {
   onResetData: () => void;
   onNavigateToPage: (pageIndex: number) => void;
   onGoBack?: () => void;
+  onOpenFeatureGuide?: () => void;
 }
 
 export const PageSettings: React.FC<PageSettingsProps> = ({
@@ -53,12 +61,16 @@ export const PageSettings: React.FC<PageSettingsProps> = ({
   peerBalances = [],
   onUpdateUserProfile,
   onOpenProfileModal,
+  onOpenLoginModal,
+  onLogout,
   onUpdateBudget,
   onUpdateCurrency,
   onToggleSmsPermission,
   onSimulateIncomingSms,
   onResetData,
+  onNavigateToPage,
   onGoBack,
+  onOpenFeatureGuide,
 }) => {
   const { theme, themeId, setThemeId, availableThemes } = useTheme();
   const { showToast } = useToast();
@@ -66,6 +78,7 @@ export const PageSettings: React.FC<PageSettingsProps> = ({
   const [tempDailyLimit, setTempDailyLimit] = useState(dailyLimit.toString());
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // SMS Simulation State
   const [isSimulating, setIsSimulating] = useState(false);
@@ -222,25 +235,62 @@ export const PageSettings: React.FC<PageSettingsProps> = ({
                 <span className={`text-xs sm:text-sm font-bold ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
                   {userProfile.name || 'Guest'}
                 </span>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold border ${
-                  theme.isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                }`}>
-                  Active Profile
-                </span>
+                {userProfile.isLoggedIn ? (
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold border ${
+                    theme.isDark ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  }`}>
+                    Signed In
+                  </span>
+                ) : (
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold border ${
+                    theme.isDark ? 'bg-slate-800 text-slate-400 border-slate-700' : 'bg-slate-100 text-slate-600 border-slate-200'
+                  }`}>
+                    Guest
+                  </span>
+                )}
               </div>
               <p className={`text-[11px] truncate max-w-full ${theme.isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                {userProfile.avatarUrl && !userProfile.avatarUrl.startsWith('data:image/svg+xml') ? 'Custom Photo Uploaded' : 'Default Guest Avatar'}
+                {userProfile.email || (userProfile.avatarUrl && !userProfile.avatarUrl.startsWith('data:image/svg+xml') ? 'Custom Photo Uploaded' : 'Local Guest Account')}
               </p>
             </div>
 
             <div className="flex items-center gap-2">
+              {onOpenLoginModal && (
+                <button
+                  type="button"
+                  id="settings-login-toggle-btn"
+                  onClick={userProfile.isLoggedIn ? onLogout : onOpenLoginModal}
+                  className={`px-3 py-2 rounded-full text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer ${
+                    userProfile.isLoggedIn
+                      ? (theme.isDark
+                        ? 'border-rose-900/60 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300'
+                        : 'border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700')
+                      : (theme.isDark
+                        ? 'border-emerald-500/40 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300'
+                        : 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800')
+                  }`}
+                  title={userProfile.isLoggedIn ? 'Sign out of account' : 'Sign in or create account'}
+                >
+                  {userProfile.isLoggedIn ? (
+                    <>
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="w-3.5 h-3.5" />
+                      <span>Sign In</span>
+                    </>
+                  )}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onOpenProfileModal}
-                className={`px-3.5 py-2 rounded-full ${theme.accentBtnBg} ${theme.accentBtnText} text-xs font-bold transition-all shadow-xs ${theme.accentShadow} hover:brightness-105 flex items-center gap-1.5`}
+                className={`px-3.5 py-2 rounded-full ${theme.accentBtnBg} ${theme.accentBtnText} text-xs font-bold transition-all shadow-xs ${theme.accentShadow} hover:brightness-105 flex items-center gap-1.5 cursor-pointer`}
               >
                 <Camera className="w-3.5 h-3.5" />
-                Edit Profile
+                <span>Profile</span>
               </button>
             </div>
           </div>
@@ -720,7 +770,60 @@ export const PageSettings: React.FC<PageSettingsProps> = ({
           </div>
         </div>
 
-        {/* 7. EXPORT DATA (CSV) */}
+        {/* 7. HOW IT WORKS / FEATURE GUIDE */}
+        <div
+          style={{
+            backgroundColor: theme.isDark ? theme.bgCard : 'rgba(255, 255, 255, 0.85)',
+            borderColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.9)',
+          }}
+          className="rounded-[24px] border p-3.5 sm:p-4 space-y-3 shadow-[0_10px_30px_rgba(0,0,0,0.04)] backdrop-blur-xl"
+        >
+          <div className="flex items-center justify-between">
+            <h2 className={`text-xs sm:text-sm font-bold flex items-center gap-2 ${theme.isDark ? 'text-white' : 'text-slate-900'}`}>
+              <BookOpen className="w-4 h-4 text-emerald-500" />
+              How it Works / Feature Guide
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+              7 Key Features
+            </span>
+          </div>
+
+          <p className={`text-[11px] leading-relaxed ${theme.isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            Review the swipeable visual walkthrough anytime. Learn how auto SMS tracking, AI conversational logging, peer balance splits, financial health scoring, and CSV exports work.
+          </p>
+
+          <div
+            style={{
+              backgroundColor: theme.isDark ? '#080C16' : 'rgba(248, 250, 252, 0.95)',
+              borderColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(226, 232, 240, 0.9)',
+            }}
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-[20px] border shadow-xs"
+          >
+            <div className="space-y-0.5 text-left">
+              <div className={`text-xs font-semibold ${theme.isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                Visual Walkthrough
+              </div>
+              <div className={`text-[10px] ${theme.isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                Interactive swipe cards with illustrative mockups
+              </div>
+            </div>
+
+            <button
+              id="open-feature-guide-btn"
+              type="button"
+              onClick={onOpenFeatureGuide}
+              style={{
+                backgroundColor: theme.accentColor,
+              }}
+              className="w-full sm:w-auto px-4 py-2 rounded-full font-bold text-xs flex items-center justify-center gap-2 text-slate-950 shadow-md hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+            >
+              <BookOpen className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>View Feature Guide</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 8. EXPORT DATA (CSV) */}
         <div
           style={{
             backgroundColor: theme.isDark ? theme.bgCard : 'rgba(255, 255, 255, 0.85)',
@@ -759,31 +862,57 @@ export const PageSettings: React.FC<PageSettingsProps> = ({
               </div>
             </div>
 
-            <button
-              id="export-csv-btn"
-              type="button"
-              disabled={isExporting}
-              onClick={() => {
-                setIsExporting(true);
-                const result = exportDataToCsv(transactions, peerBalances);
-                if (result.success) {
-                  showToast(result.message || 'Exported CSV successfully!', 'success');
-                } else {
-                  showToast(result.message || 'No data to export yet.', 'error');
-                }
-                setTimeout(() => setIsExporting(false), 800);
-              }}
-              style={{
-                backgroundColor: theme.accentColor,
-              }}
-              className="w-full sm:w-auto px-4 py-2 rounded-full font-bold text-xs flex items-center justify-center gap-2 text-slate-950 shadow-md hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-            >
-              <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>{isExporting ? 'Exporting...' : 'Export to CSV'}</span>
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                id="export-csv-custom-btn"
+                type="button"
+                onClick={() => setIsExportModalOpen(true)}
+                className={`w-1/2 sm:w-auto px-3.5 py-2 rounded-full font-bold text-xs flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                  theme.isDark
+                    ? 'border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200'
+                    : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-800'
+                }`}
+                title="Choose date ranges or categories to export"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Filters</span>
+              </button>
+
+              <button
+                id="export-csv-btn"
+                type="button"
+                disabled={isExporting}
+                onClick={() => {
+                  setIsExporting(true);
+                  const result = exportDataToCsv(transactions, peerBalances);
+                  if (result.success) {
+                    showToast(result.message || 'Exported CSV successfully!', 'success');
+                  } else {
+                    showToast(result.message || 'No data to export yet.', 'error');
+                  }
+                  setTimeout(() => setIsExporting(false), 800);
+                }}
+                style={{
+                  backgroundColor: theme.accentColor,
+                }}
+                className="w-1/2 sm:w-auto px-4 py-2 rounded-full font-bold text-xs flex items-center justify-center gap-2 text-slate-950 shadow-md hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>{isExporting ? 'Exporting...' : 'Export to CSV'}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* CUSTOMIZABLE EXPORT CSV MODAL */}
+      <ExportCsvModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        transactions={transactions}
+        peerBalances={peerBalances}
+        currency={currency}
+      />
     </section>
   );
 };

@@ -237,6 +237,10 @@ export interface AgentApiResponse {
 export interface UserProfile {
   name: string;
   avatarUrl: string;
+  email?: string;
+  isLoggedIn?: boolean;
+  uid?: string;
+  emailVerified?: boolean;
 }
 
 export interface AppState {

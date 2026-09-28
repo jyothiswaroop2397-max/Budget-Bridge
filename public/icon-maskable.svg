@@ -1,22 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
     <!-- Teal-to-Emerald green gradient (#0F766E to #10B981) -->
-    <linearGradient id="rupeeBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="rupeeBgGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stopColor="#0F766E" />
       <stop offset="100%" stopColor="#10B981" />
     </linearGradient>
 
-    <!-- Subtle soft shadow for the rupee glyph -->
-    <filter id="glyphShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#042F2C" flood-opacity="0.35" />
+    <!-- Subtle soft shadow -->
+    <filter id="glyphShadowMask" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#042F2C" flood-opacity="0.3" />
     </filter>
   </defs>
 
-  <!-- Full-bleed background square (Android adaptive launcher will mask it) -->
-  <rect width="512" height="512" fill="url(#rupeeBgGrad)" />
+  <!-- Full-bleed background filling 100% of 512x512 -->
+  <rect width="512" height="512" fill="url(#rupeeBgGradMask)" />
 
-  <!-- Bold, clean Rupee symbol (₹) centered in the 512x512 canvas -->
-  <g filter="url(#glyphShadow)">
+  <!-- Rupee glyph strictly scaled inside central 60% safe zone (safe area diameter ~300px out of 512) -->
+  <g filter="url(#glyphShadowMask)">
     <text
       x="50%"
       y="54%"
@@ -24,7 +24,7 @@
       dominant-baseline="central"
       font-family="system-ui, -apple-system, 'Plus Jakarta Sans', 'Segoe UI', Roboto, sans-serif"
       font-weight="800"
-      font-size="310"
+      font-size="220"
       fill="#FFFFFF"
     >₹</text>
   </g>

@@ -94,6 +94,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     const finalName = name.trim() || 'Guest';
     const finalAvatar = avatarUrl.trim() || getDefaultAvatar(finalName);
     onSaveProfile({
+      ...userProfile,
       name: finalName,
       avatarUrl: sanitizeAvatarUrl(finalAvatar, finalName),
     });

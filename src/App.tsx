@@ -12,11 +12,15 @@ import { SettleUpModal } from './components/SettleUpModal.js';
 import { UserProfileModal } from './components/UserProfileModal.js';
 import { AiChatModal } from './components/AiChatModal.js';
 import { CalendarMonthModal } from './components/CalendarMonthModal.js';
+import { ExportCsvModal } from './components/ExportCsvModal.js';
+import { LoginPage } from './components/LoginPage.js';
 import { SplashScreen } from './components/SplashScreen.js';
 import { OnboardingFlow } from './components/OnboardingFlow.js';
 import { useTheme } from './context/ThemeContext.js';
-import { Category, PeerBalance, PeerBalanceType, TransactionType } from './types.js';
+import { Category, PeerBalance, PeerBalanceType, TransactionType, UserProfile } from './types.js';
 import { getDefaultAvatar } from './utils/avatar.js';
+import { auth } from './lib/firebase.js';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 // Custom Hooks
 import {
@@ -98,6 +102,7 @@ export const App: React.FC = () => {
   // Selected month and year for calendar navigation & history browsing
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
+  const [isExportCsvModalOpen, setIsExportCsvModalOpen] = useState(false);
 
   // 6. Derived Financial Calculations, Budgets & Rollover Hook
   const {
@@ -175,7 +180,60 @@ export const App: React.FC = () => {
   const [defaultPeerType, setDefaultPeerType] = useState<PeerBalanceType>('OWED_TO_YOU');
   const [settleTargetPeerId, setSettleTargetPeerId] = useState<string | null>(null);
   const [isSettleModalOpen, setIsSettleModalOpen] = useState(false);
+  const [isFeatureGuideOpen, setIsFeatureGuideOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+
+  // 5. Keep the user logged in across app restarts using Firebase's auth state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser && firebaseUser.emailVerified) {
+        const displayName = firebaseUser.displayName || state.userProfile?.name || firebaseUser.email?.split('@')[0] || 'User';
+        const avatar = firebaseUser.photoURL || state.userProfile?.avatarUrl || getDefaultAvatar(displayName);
+        handleUpdateUserProfile({
+          uid: firebaseUser.uid,
+          name: displayName,
+          email: firebaseUser.email || undefined,
+          avatarUrl: avatar,
+          isLoggedIn: true,
+          emailVerified: true,
+        });
+      } else if (!firebaseUser && state.userProfile?.isLoggedIn) {
+        // If logged out from Firebase, sync state back to guest mode
+        handleUpdateUserProfile({
+          name: 'Guest',
+          avatarUrl: getDefaultAvatar('Guest'),
+          email: undefined,
+          isLoggedIn: false,
+          uid: undefined,
+          emailVerified: false,
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLoginSuccess = (user: UserProfile) => {
+    handleUpdateUserProfile(user);
+    setIsLoginModalOpen(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error('Error signing out of Firebase:', err);
+    }
+    handleUpdateUserProfile({
+      name: 'Guest',
+      avatarUrl: getDefaultAvatar('Guest'),
+      email: undefined,
+      isLoggedIn: false,
+      uid: undefined,
+      emailVerified: false,
+    });
+  };
 
   // Onboarding persistence flag: shown once on very first visit
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean>(() => {
@@ -255,7 +313,12 @@ export const App: React.FC = () => {
 
   // 7. First-visit Onboarding Flow: shown once on very first visit
   if (!hasSeenOnboarding) {
-    return <OnboardingFlow onComplete={handleFinishOnboarding} />;
+    return (
+      <OnboardingFlow
+        onComplete={handleFinishOnboarding}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
+      />
+    );
   }
 
   return (
@@ -278,6 +341,7 @@ export const App: React.FC = () => {
         currency={state.currency}
         userProfile={state.userProfile}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
         selectedDate={selectedDate}
         onPreviousMonth={handlePreviousMonth}
         onNextMonth={handleNextMonth}
@@ -321,6 +385,7 @@ export const App: React.FC = () => {
             selectedDate={selectedDate}
             onResetToCurrentMonth={handleResetToCurrentMonth}
             onOpenCalendar={() => setIsCalendarModalOpen(true)}
+            onOpenExportCsv={() => setIsExportCsvModalOpen(true)}
           />
         )}
 
@@ -356,6 +421,8 @@ export const App: React.FC = () => {
             peerBalances={state.peerBalances}
             onUpdateUserProfile={handleUpdateUserProfile}
             onOpenProfileModal={() => setIsProfileModalOpen(true)}
+            onOpenLoginModal={() => setIsLoginModalOpen(true)}
+            onLogout={handleLogout}
             onUpdateBudget={handleUpdateBudget}
             onUpdateCurrency={handleUpdateCurrency}
             onToggleSmsPermission={handleToggleSmsPermission}
@@ -363,6 +430,7 @@ export const App: React.FC = () => {
             onResetData={handleResetData}
             onNavigateToPage={handleNavigatePage}
             onGoBack={handleGoBack}
+            onOpenFeatureGuide={() => setIsFeatureGuideOpen(true)}
           />
         )}
 
@@ -482,6 +550,34 @@ export const App: React.FC = () => {
         currency={state.currency}
         monthlyCap={state.monthlyCap}
       />
+
+      {/* CSV EXPORT MODAL */}
+      <ExportCsvModal
+        isOpen={isExportCsvModalOpen}
+        onClose={() => setIsExportCsvModalOpen(false)}
+        transactions={state.transactions}
+        peerBalances={state.peerBalances}
+        currency={state.currency}
+      />
+
+      {/* FEATURE GUIDE (RE-OPENED FROM SETTINGS) */}
+      {isFeatureGuideOpen && (
+        <OnboardingFlow
+          mode="guide"
+          onComplete={() => setIsFeatureGuideOpen(false)}
+        />
+      )}
+
+      {/* LOGIN / SIGN-IN MODAL */}
+      {isLoginModalOpen && (
+        <LoginPage
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          currentUser={state.userProfile}
+          onLoginSuccess={handleLoginSuccess}
+          onContinueAsGuest={() => setIsLoginModalOpen(false)}
+        />
+      )}
 
       {/* FULL-SCREEN INTRO SPLASH SCREEN */}
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}

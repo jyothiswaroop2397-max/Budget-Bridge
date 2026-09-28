@@ -115,6 +115,7 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
   selectedDate,
   onResetToCurrentMonth,
   onOpenCalendar,
+  onOpenExportCsv,
 }) => {
   const { theme } = useTheme();
   const { showToast } = useToast();
@@ -1217,14 +1218,32 @@ export const PageOverview: React.FC<PageOverviewProps> = ({
               {monthTransactions.length}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => onNavigateToPage(1)}
-            className={`${theme.accentText} hover:opacity-80 font-bold flex items-center gap-1 text-xs transition-colors cursor-pointer`}
-          >
-            <span>View All ({transactions.length})</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenExportCsv && (
+              <button
+                type="button"
+                id="overview-export-csv-btn"
+                onClick={onOpenExportCsv}
+                className={`p-1 sm:px-2 sm:py-1 rounded-lg border text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                  theme.isDark
+                    ? 'border-slate-700/80 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white'
+                    : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900'
+                }`}
+                title="Export transactions & ledgers as CSV"
+              >
+                <Download className="w-3 h-3 text-emerald-500" />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onNavigateToPage(1)}
+              className={`${theme.accentText} hover:opacity-80 font-bold flex items-center gap-1 text-xs transition-colors cursor-pointer`}
+            >
+              <span>View All ({transactions.length})</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-1.5">
